@@ -63,7 +63,7 @@ Cada requerimiento tiene un código para trazarlo en el desarrollo y las pruebas
 ### 3.2 Recetas y costeo
 
 - **RF-06** Definir la receta de cada producto: insumos, cantidad y unidad, y rendimiento (cuántas unidades produce).
-- **RF-07** Calcular el costo teórico del producto con el costo actual de sus insumos y mostrar el margen frente al precio de venta.
+- **RF-07** Calcular el costo teórico del producto con el costo actual de sus insumos y mostrar el margen frente al precio de venta. El costo actual de un insumo es su **último costo de compra** (lo que cuesta reponerlo hoy). Es solo una referencia para fijar precios; el costo real de ventas y producciones sale por PEPS (RF-08).
 - **RF-08** Calcular el costo real de cada venta o producción con los lotes consumidos (PEPS).
 
 ### 3.3 Punto de venta
@@ -75,7 +75,7 @@ Cada requerimiento tiene un código para trazarlo en el desarrollo y las pruebas
 - **RF-13** Marcar la venta como **en local, para llevar o domicilio**. En domicilio se registran cliente, dirección, teléfono, valor del domicilio y domiciliario. El valor del domicilio es del domiciliario, no del negocio.
 - **RF-14** Generar un comprobante interno en PDF, para imprimir desde el navegador en cualquier impresora o enviar por WhatsApp. No es factura electrónica. Queda preparado para impresora térmica cuando el local la tenga.
 - **RF-15** Anular una venta con motivo, sin borrarla. La anulación revierte inventario y caja.
-- **RF-16** Impedir vender un producto por lote sin stock, o un preparado cuyos insumos no alcanzan, salvo que el administrador lo permita en configuración.
+- **RF-16** Impedir vender un producto por lote sin stock, o un preparado cuyos insumos no alcanzan, salvo que el administrador lo permita en configuración. Si lo permite, la parte que no alcanza queda como **faltante por regularizar** (tabla faltantes_inventario) con costo estimado al último costo de compra; el stock nunca queda negativo. El faltante se cuadra con la siguiente compra o producción del ítem, o con un ajuste, y aparece en las alertas de inventario mientras esté abierto.
 
 ### 3.4 Caja
 
@@ -230,13 +230,16 @@ El modelo se organiza alrededor de dos libros que nunca se editan: **caja_movimi
 | Tabla | Campos principales | Notas |
 |---|---|---|
 | sedes | nombre, direccion, telefono, activa | Una sede al inicio |
-| usuarios | nombre, email, password_hash, activo, ultimo_acceso |  |
+| usuarios | nombre, email, password_hash, pin_hash, activo, ultimo_acceso, intentos_fallidos, bloqueado_hasta | pin_hash para el cambio rápido de cajero (sección 11) |
+| sesiones_refresh | usuario_id, token_hash, expira_en, revocado_en, reemplazado_por | Rotación y revocación del token de renovación |
 | roles | nombre, descripcion, es_base | Roles base no eliminables si tienen usuarios |
 | permisos | clave (ventas.anular), descripcion, modulo | Catálogo fijo definido en código |
 | rol_permisos | rol_id, permiso_id |  |
 | usuario_roles | usuario_id, rol_id, sede_id | Permite roles distintos por sede |
 | configuracion | sede_id, clave, valor (JSONB) | Topes, alertas, reglas de venta sin stock |
 | auditoria | usuario_id, accion, entidad, entidad_id, antes (JSONB), despues (JSONB), fecha, ip | Sección 11 |
+| idempotencia | clave, usuario_id, ruta, hash_cuerpo, estado_http, respuesta (JSONB), creado_en, expira_en | Encabezado Idempotency-Key (sección 9) |
+| consecutivos | sede_id, tipo (venta / encargo), ultimo | Se lee con bloqueo de fila; los números no se reutilizan (RN-04) |
 
 ### 7.2 Carta y recetas
 
@@ -260,6 +263,8 @@ El modelo se organiza alrededor de dos libros que nunca se editan: **caja_movimi
 | lotes | tipo_item (insumo / producto), item_id, origen (compra / produccion / ajuste), origen_id, cantidad_inicial, cantidad_disponible, costo_unitario NUMERIC(18,6), fecha_ingreso, fecha_vencimiento | Base de PEPS y vencimientos |
 | movimientos_inventario | tipo, tipo_item, item_id, lote_id, cantidad (con signo), costo_unitario, costo_total (BIGINT), referencia_tipo, referencia_id, usuario_id, fecha | Libro de inventario; solo inserciones |
 | proveedores | nombre, nit_o_cedula, telefono, email, activo |  |
+| proveedor_insumos | proveedor_id, insumo_id | Insumos que suministra cada proveedor (RF-24) |
+| faltantes_inventario | tipo_item, item_id, cantidad, costo_estimado, venta_id, estado (abierto / regularizado), regularizado_por_mov_id | Ventas sin stock permitidas por el admin (RF-16) |
 | compras | proveedor_id, fecha, numero_factura_proveedor, total, estado_pago (contado / por_pagar / pagada), soporte_url |  |
 | compra_items | compra_id, insumo_id, presentacion_id, cantidad, costo_total, fecha_vencimiento | Cada ítem crea un lote |
 | pagos_compra | compra_id, fecha, monto, metodo_pago_id, caja_sesion_id (opcional) |  |
@@ -281,6 +286,7 @@ Tipos de movimientos_inventario: compra, venta, consumo_produccion, entrada_prod
 | venta_items | venta_id, producto_id, cantidad, precio_unitario, descuento, subtotal, costo_total, nota | Copia el precio del momento |
 | venta_item_modificadores | venta_item_id, modificador_id, precio, costo_total |  |
 | venta_pagos | venta_id, metodo_pago_id, monto | La suma cubre total + propina + domicilio |
+| domiciliarios | nombre, telefono, activo | No son usuarios del sistema; se eligen al vender y se les liquida al cierre |
 | domicilios | venta_id o encargo_id, direccion, telefono, domiciliario_id, valor, estado, liquidado_en | El valor es del domiciliario (RN-18) |
 | categorias_gasto | nombre, cuenta_puc, activa |  |
 | gastos | fecha, categoria_id, descripcion, monto, metodo_pago_id, fuente (caja / banco / duenos), caja_sesion_id, proveedor_id, soporte_url, estado |  |
@@ -292,7 +298,7 @@ Tipos de caja_movimientos: venta, propina, domicilio, pago_domiciliario, abono, 
 | Tabla | Campos principales | Notas |
 |---|---|---|
 | clientes | nombre, telefono, direccion, notas |  |
-| encargos | cliente_id, descripcion, fecha_entrega, total, estado, venta_id (al entregar), decision_cancelacion (retiene / devuelve_total / devuelve_parcial), monto_devuelto, motivo_cancelacion, cancelado_por |  |
+| encargos | numero (consecutivo por sede), cliente_id, descripcion, fecha_entrega, total, estado, venta_id (al entregar), decision_cancelacion (retiene / devuelve_total / devuelve_parcial), monto_devuelto, motivo_cancelacion, cancelado_por |  |
 | encargo_items | encargo_id, producto_id (opcional), descripcion, cantidad, precio | Permite ítems personalizados sin producto |
 | encargo_abonos | encargo_id, monto, metodo_pago_id, caja_sesion_id, estado |  |
 
@@ -400,7 +406,8 @@ La interfaz toma la identidad de Zuqui's (rosa pastel, dorado, serif elegante, d
 |---|---|---|
 | --rosa | #F7C8DA | Sidebar, encabezados, fondos de marca |
 | --dorado | #B8964A | Títulos, bordes finos, íconos, separadores |
-| --fucsia | #E2468F | Botón principal (cobrar, guardar) y alertas |
+| --fucsia | #C42D72 | Botón principal (cobrar, guardar), texto de acento y alertas. Contraste 5,3:1 con blanco (AA) |
+| --fucsia-claro | #E2468F | Solo acentos decorativos y elementos grandes; no para texto normal (3,8:1) |
 | --crema | #FFF8F4 | Fondo de las áreas de trabajo |
 | --cafe | #4A3428 | Texto principal |
 | --exito / --peligro | #2E7D5B / #C0392B | Estados (caja cuadrada, diferencia, stock bajo) |
@@ -505,10 +512,10 @@ Los puntos marcados se resolvieron el 16/10/2026 y ya están reflejados en el do
 ### Con el contador
 
 - ☐ Régimen tributario y tipo de impuesto que aplica a sus ventas (IVA o impuesto al consumo), y proveedor de facturación electrónica actual.
-- ☐ Visto bueno al costeo PEPS por lote.
+- ☒ Costeo PEPS por lote: aprobado (17/10/2026).
 - ☐ Tratamiento del abono retenido en una cancelación como ingreso (RN-22). Propuesta.
-- ☐ Cortesías registradas como gasto por su costo (RN-17). Propuesta.
+- ☒ Cortesías registradas como gasto por su costo (RN-17): aprobado (17/10/2026).
 - ☐ Costo de los ajustes positivos de inventario (RN-10). Propuesta: costo del último lote.
-- ☐ Códigos PUC de las categorías de ingreso y gasto.
+- ☐ Códigos PUC de las categorías de ingreso y gasto. Hay una propuesta para validar en [puc-propuesta.md](puc-propuesta.md).
 - ☒ Propinas como dinero de terceros, fuera de los ingresos (RN-15).
 - ☒ El abono cuenta como venta al entregar el encargo (RN-20).

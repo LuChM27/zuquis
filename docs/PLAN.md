@@ -103,23 +103,23 @@ Fase 5  despliegue, respaldos, carga inicial, piloto
 
 ## 8. Decisiones abiertas y huecos detectados
 
-### Con el contador (de la especificación, sección 14)
-- Régimen tributario, impuesto aplicable (IVA o impuesto al consumo) y proveedor de facturación electrónica.
-- Visto bueno al costeo PEPS por lote.
-- Abono retenido en cancelación como ingreso (RN-22, propuesta).
-- Cortesías como gasto por su costo (RN-17, propuesta).
-- Costo de ajustes positivos = costo del último lote (RN-10, propuesta).
-- Códigos PUC de categorías de ingreso y gasto.
+### Con el contador (issue #1)
+Abiertos:
+- Régimen tributario, impuesto aplicable (IVA o impuesto al consumo) y proveedor de facturación electrónica. No bloquea hasta la fase 6: los impuestos quedan desactivados.
+- Abono retenido en cancelación como ingreso (RN-22, propuesta). Se necesita en la fase 3.
+- Costo de ajustes positivos = costo del último lote (RN-10, propuesta). Se necesita en la fase 1.
+- Códigos PUC: validar la [propuesta](puc-propuesta.md) antes de la fase 4.
 
-### Huecos del modelo detectados al planear (proponer y confirmar)
-- **Domiciliarios**: `domicilios.domiciliario_id` no tiene tabla destino. Propuesta: tabla `domiciliarios` (nombre, teléfono, activo), sin usuario del sistema.
-- **Número de encargo**: el mockup muestra "Encargo n.º 0087" pero `encargos` no tiene `numero`. Propuesta: consecutivo por sede, como las ventas.
-- **Idempotencia**: falta tabla para guardar `Idempotency-Key` y la respuesta original. Propuesta: `idempotencia(clave, usuario_id, ruta, hash_cuerpo, respuesta, creado_en)` con expiración.
-- **Tokens de renovación**: rotación y revocación necesitan tabla `sesiones_refresh` (o equivalente).
-- **Proveedor ↔ insumos**: RF-24 pide "insumos que suministra"; falta tabla `proveedor_insumos`.
-- **PIN de cajero**: falta campo `pin_hash` en `usuarios`.
-- **Consecutivos**: definir tabla o secuencia por sede para ventas y encargos, sin reutilización (RN-04).
-- **Contraste del fucsia**: `#E2468F` con texto blanco da ≈3,8:1: solo cumple AA para texto grande (≥18,7 px en negrita); los mockups usan un fucsia más oscuro. Ajustar el token del botón principal (ver issue del tema).
+Resueltos el 17/10/2026: costeo PEPS por lote aprobado; cortesías como gasto por su costo (RN-17) aprobado.
+
+### Huecos del modelo (issue #2, resueltos el 17/10/2026)
+Ya incorporados a la especificación:
+- **Domiciliarios**: tabla `domiciliarios` (nombre, teléfono, activo); no son usuarios del sistema.
+- **Número de encargo**: `encargos.numero`, consecutivo por sede como las ventas.
+- **Costo teórico** (RF-07): se calcula con el último costo de compra de cada insumo. El costo real sigue saliendo por PEPS.
+- **Venta sin stock permitida** (RF-16): lo que falta queda como faltante por regularizar (`faltantes_inventario`) con costo estimado; el stock nunca queda negativo.
+- **Fucsia**: `--fucsia #C42D72` (5,3:1 con blanco) para botones y texto; `#E2468F` solo como acento decorativo.
+- Tablas técnicas: `idempotencia`, `sesiones_refresh`, `proveedor_insumos`, `consecutivos` y el campo `usuarios.pin_hash`.
 
 ## 9. Riesgos
 
@@ -129,4 +129,4 @@ Fase 5  despliegue, respaldos, carga inicial, piloto
 | Pérdida de datos en el PC del local | Respaldo diario fuera del PC, restauración probada cada mes |
 | Recetas incompletas al arrancar ⇒ costos falsos | Carga inicial guiada en fase 5; RF-16 configurable para no frenar la venta |
 | Alcance grande para una sola persona | Fases con criterio de salida; fase 6 fuera del compromiso inicial |
-| Decisiones contables abiertas | Issues de decisión con fecha límite antes de la fase 2 y 4 |
+| Decisiones contables abiertas | Issue #1, cerrar cada punto antes de la fase que lo usa (RN-10 en fase 1, RN-22 en fase 3, PUC en fase 4) |
