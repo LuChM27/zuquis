@@ -106,7 +106,7 @@ Fase 5  despliegue, respaldos, carga inicial, piloto
 ### Con el contador (issue #1)
 Abiertos:
 - Régimen tributario, impuesto aplicable (IVA o impuesto al consumo) y proveedor de facturación electrónica. No bloquea hasta la fase 6: los impuestos quedan desactivados.
-- Códigos PUC: validar la [propuesta](puc-propuesta.md) antes de la fase 4 (actividad del RUT, nivel de 4 o 6 dígitos, cuenta de las transferencias).
+- Códigos PUC: falta el visto bueno del contador a la [propuesta](puc-propuesta.md) antes de la fase 4. La estructura ya está decidida: 4120 / 6120, cuentas de 4 dígitos, y titular y cuenta por método de pago.
 
 Resueltos el 17/10/2026: costeo PEPS por lote; cortesías como gasto por su costo (RN-17); ajuste positivo al costo del último lote (RN-10); en una cancelación se devuelve todo el abono por defecto, y si el admin retiene una parte se reporta como ingreso por cancelación (RN-22); mermas como gasto aparte.
 

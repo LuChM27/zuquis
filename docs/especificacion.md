@@ -278,7 +278,7 @@ Tipos de movimientos_inventario: compra, venta, consumo_produccion, entrada_prod
 
 | Tabla | Campos principales | Notas |
 |---|---|---|
-| metodos_pago | nombre, es_efectivo, activo, orden | Efectivo, Nequi, Bre-B, Bancolombia, otra transferencia |
+| metodos_pago | nombre, es_efectivo, titular (negocio / dueno), cuenta_puc, activo, orden | Efectivo, Nequi, Bre-B, Bancolombia, otra transferencia. Hay cuentas del negocio y cuentas personales de los dueños; titular y cuenta_puc se configuran por método |
 | caja_sesiones | abierta_por, abierta_en, base_inicial, cerrada_por, cerrada_en, estado, observacion |  |
 | caja_arqueos | caja_sesion_id, metodo_pago_id, esperado, contado, diferencia | Una fila por método al cerrar |
 | caja_movimientos | caja_sesion_id, tipo, metodo_pago_id, monto (con signo), referencia_tipo, referencia_id, motivo, usuario_id, fecha | Libro de dinero; solo inserciones |
@@ -516,6 +516,6 @@ Los puntos marcados se resolvieron el 16/10/2026 y ya están reflejados en el do
 - ☒ Abono en una cancelación (RN-22): por defecto se devuelve todo; si el admin retiene una parte, se reporta como ingreso por cancelación, no como venta (17/10/2026).
 - ☒ Cortesías registradas como gasto por su costo (RN-17): aprobado (17/10/2026).
 - ☒ Costo de los ajustes positivos de inventario (RN-10): costo del último lote (17/10/2026).
-- ☐ Códigos PUC de las categorías de ingreso y gasto. Hay una propuesta para validar en [puc-propuesta.md](puc-propuesta.md). Las mermas se reportan como gasto aparte (17/10/2026).
+- ☐ Códigos PUC: la estructura está decidida (17/10/2026): actividad de elaboración de panadería (4120 / 6120), cuentas de 4 dígitos, mermas como gasto aparte y transferencias que llegan a cuentas del negocio o de los dueños según el método. Falta el visto bueno del contador a la tabla de [puc-propuesta.md](puc-propuesta.md).
 - ☒ Propinas como dinero de terceros, fuera de los ingresos (RN-15).
 - ☒ El abono cuenta como venta al entregar el encargo (RN-20).

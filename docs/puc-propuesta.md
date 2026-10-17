@@ -1,6 +1,6 @@
 # Propuesta de códigos PUC: para validar con el contador
 
-Punto de partida para RF-22 y RF-43. Usa cuentas de 4 dígitos del PUC para comerciantes (Decreto 2650 de 1993). **No es una decisión contable**: el contador debe confirmar o corregir cada código y, si quiere, bajar a subcuenta de 6 dígitos. El sistema guarda el código como texto editable por categoría, así que cambiarlo no exige tocar código.
+Punto de partida para RF-22 y RF-43. Usa cuentas de 4 dígitos del PUC para comerciantes (Decreto 2650 de 1993). **Decidido el 17/10/2026:** actividad de elaboración de productos de panadería (4120 / 6120), reporte en cuentas de 4 dígitos, mermas como gasto aparte y transferencias que llegan a una mezcla de cuentas del negocio y personales. Falta que el contador dé el visto bueno a cada código. El sistema guarda el código como texto editable por categoría, así que cambiarlo no exige tocar código.
 
 Se necesita validado antes de la fase 4 (reportes y exportación).
 
@@ -8,7 +8,7 @@ Se necesita validado antes de la fase 4 (reportes y exportación).
 
 | Concepto en el sistema | Cuenta propuesta | Nota para el contador |
 |---|---|---|
-| Ventas de productos (POS y encargos entregados) | 4140 Hoteles y restaurantes | Alternativas: 4120 Industrias manufactureras (si se considera fabricación de alimentos) o 4135 Comercio. Depende de la actividad CIIU registrada en el RUT. |
+| Ventas de productos (POS y encargos entregados) | 4120 Industrias manufactureras | Actividad del RUT: elaboración de productos de panadería. |
 | Descuentos en ventas | 4175 Devoluciones en ventas (DB) | Se reportan aparte del ingreso bruto. |
 | Abono retenido por cancelación de encargo (RN-22) | 4295 Diversos | Aprobado como ingreso aparte de las ventas. Es una excepción: por defecto se devuelve todo el abono. |
 
@@ -16,7 +16,7 @@ Se necesita validado antes de la fase 4 (reportes y exportación).
 
 | Concepto | Cuenta propuesta | Nota |
 |---|---|---|
-| Costo real PEPS de lo vendido | 6140 Hoteles y restaurantes | Debe ir con la misma actividad que se elija para el ingreso (6120 / 6135). |
+| Costo real PEPS de lo vendido | 6120 Industrias manufactureras | Misma actividad que el ingreso. |
 
 ## Gastos
 
@@ -40,6 +40,16 @@ Categorías de gasto iniciales del sistema (RF-22):
 | Mermas de inventario (gasto aparte, decidido el 17/10/2026) | 5295 Diversos |
 | Otros gastos | 5195 Diversos |
 
+## Dónde entra el dinero (métodos de pago)
+
+Cada método de pago se configura con su titular y su cuenta, porque hay cuentas del negocio y cuentas personales de los dueños.
+
+| Método | Titular | Cuenta propuesta | Nota |
+|---|---|---|---|
+| Efectivo | Negocio | 1105 Caja | |
+| Transferencia a cuenta del negocio | Negocio | 1110 Bancos | Una por cada cuenta (Bancolombia, Nequi, Bre-B…) |
+| Transferencia a cuenta personal de un dueño | Dueño | 1325 Cuentas por cobrar a socios y accionistas | Propuesta: el dinero es del negocio pero está en manos del socio. El contador puede preferir otro tratamiento |
+
 ## Dinero de terceros (no es ingreso)
 
 | Concepto | Cuenta propuesta | Nota |
@@ -50,6 +60,6 @@ Categorías de gasto iniciales del sistema (RF-22):
 
 ## Preguntas para el contador
 
-1. ¿Qué actividad (4120, 4135 o 4140) corresponde según el RUT?
-2. ¿Quiere el reporte en cuentas de 4 dígitos o en subcuentas de 6?
-3. ¿Las transferencias (Nequi, Bre-B, Bancolombia) se registran en 1110 Bancos o en otra cuenta?
+1. ¿Está de acuerdo con 4120 / 6120 para la actividad de elaboración de panadería?
+2. ¿Cómo registra el dinero de ventas que llega a cuentas personales de los dueños? Propuesta: 1325.
+3. ¿Da el visto bueno a los códigos de gastos y de dinero de terceros?
