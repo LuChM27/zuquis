@@ -10,7 +10,7 @@ Se necesita validado antes de la fase 4 (reportes y exportación).
 |---|---|---|
 | Ventas de productos (POS y encargos entregados) | 4140 Hoteles y restaurantes | Alternativas: 4120 Industrias manufactureras (si se considera fabricación de alimentos) o 4135 Comercio. Depende de la actividad CIIU registrada en el RUT. |
 | Descuentos en ventas | 4175 Devoluciones en ventas (DB) | Se reportan aparte del ingreso bruto. |
-| Abono retenido por cancelación de encargo (RN-22) | 4295 Diversos | Depende de la aprobación de RN-22. |
+| Abono retenido por cancelación de encargo (RN-22) | 4295 Diversos | Aprobado como ingreso aparte de las ventas. Es una excepción: por defecto se devuelve todo el abono. |
 
 ## Costo de ventas
 
@@ -37,7 +37,7 @@ Categorías de gasto iniciales del sistema (RF-22):
 | Publicidad | 5235 Servicios (gastos de ventas) |
 | Comisiones y gastos bancarios | 5305 Financieros |
 | Cortesías por su costo (RN-17, aprobado) | 5295 Diversos (gastos de ventas) |
-| Mermas de inventario | 5295 Diversos, o dentro del costo de ventas (6140) |
+| Mermas de inventario (gasto aparte, decidido el 17/10/2026) | 5295 Diversos |
 | Otros gastos | 5195 Diversos |
 
 ## Dinero de terceros (no es ingreso)
@@ -52,5 +52,4 @@ Categorías de gasto iniciales del sistema (RF-22):
 
 1. ¿Qué actividad (4120, 4135 o 4140) corresponde según el RUT?
 2. ¿Quiere el reporte en cuentas de 4 dígitos o en subcuentas de 6?
-3. ¿Las mermas van como gasto (5295) o dentro del costo de ventas?
-4. ¿Las transferencias (Nequi, Bre-B, Bancolombia) se registran en 1110 Bancos o en otra cuenta?
+3. ¿Las transferencias (Nequi, Bre-B, Bancolombia) se registran en 1110 Bancos o en otra cuenta?

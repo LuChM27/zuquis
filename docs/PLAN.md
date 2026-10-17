@@ -106,11 +106,9 @@ Fase 5  despliegue, respaldos, carga inicial, piloto
 ### Con el contador (issue #1)
 Abiertos:
 - Régimen tributario, impuesto aplicable (IVA o impuesto al consumo) y proveedor de facturación electrónica. No bloquea hasta la fase 6: los impuestos quedan desactivados.
-- Abono retenido en cancelación como ingreso (RN-22, propuesta). Se necesita en la fase 3.
-- Costo de ajustes positivos = costo del último lote (RN-10, propuesta). Se necesita en la fase 1.
-- Códigos PUC: validar la [propuesta](puc-propuesta.md) antes de la fase 4.
+- Códigos PUC: validar la [propuesta](puc-propuesta.md) antes de la fase 4 (actividad del RUT, nivel de 4 o 6 dígitos, cuenta de las transferencias).
 
-Resueltos el 17/10/2026: costeo PEPS por lote aprobado; cortesías como gasto por su costo (RN-17) aprobado.
+Resueltos el 17/10/2026: costeo PEPS por lote; cortesías como gasto por su costo (RN-17); ajuste positivo al costo del último lote (RN-10); en una cancelación se devuelve todo el abono por defecto, y si el admin retiene una parte se reporta como ingreso por cancelación (RN-22); mermas como gasto aparte.
 
 ### Huecos del modelo (issue #2, resueltos el 17/10/2026)
 Ya incorporados a la especificación:
@@ -129,4 +127,4 @@ Ya incorporados a la especificación:
 | Pérdida de datos en el PC del local | Respaldo diario fuera del PC, restauración probada cada mes |
 | Recetas incompletas al arrancar ⇒ costos falsos | Carga inicial guiada en fase 5; RF-16 configurable para no frenar la venta |
 | Alcance grande para una sola persona | Fases con criterio de salida; fase 6 fuera del compromiso inicial |
-| Decisiones contables abiertas | Issue #1, cerrar cada punto antes de la fase que lo usa (RN-10 en fase 1, RN-22 en fase 3, PUC en fase 4) |
+| Decisiones contables abiertas | Issue #1: PUC antes de la fase 4; régimen y facturador antes de la fase 6 |

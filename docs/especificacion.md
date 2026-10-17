@@ -112,7 +112,7 @@ Cada requerimiento tiene un código para trazarlo en el desarrollo y las pruebas
 - **RF-35** Registrar uno o varios abonos con método de pago. Cada abono entra a la caja abierta en ese momento.
 - **RF-36** Mostrar el saldo pendiente y cobrarlo al entregar, como cierre del encargo.
 - **RF-37** Manejar los estados del encargo: pendiente, en producción, listo, entregado y cancelado.
-- **RF-38** Al cancelar, el administrador decide caso a caso si el abono se retiene, se devuelve total o se devuelve parcial, con motivo obligatorio. La devolución sale como egreso de caja.
+- **RF-38** Al cancelar, por defecto se devuelve el abono completo. Como excepción, el administrador puede retener una parte o todo, con motivo obligatorio. La devolución sale como egreso de caja.
 - **RF-39** Ver los encargos en calendario y en lista por fecha de entrega, con aviso de los del día.
 
 ### 3.9 Clientes
@@ -341,7 +341,7 @@ Toda operación que mueve dinero o inventario se ejecuta en **una sola transacci
 - **RN-19** La suma de abonos no puede superar el total del encargo.
 - **RN-20** Cada abono entra como movimiento abono en la caja abierta. En los reportes de caja cuenta como ingreso de dinero el día que se recibe; en los de ventas y utilidad cuenta el día que se entrega el encargo.
 - **RN-21** Al entregar, se cobra el saldo, se crea la venta asociada y se descuenta el inventario. Los abonos previos quedan aplicados a esa venta.
-- **RN-22** Al cancelar, el administrador elige retener, devolver total o devolver parcial, con motivo obligatorio. Lo devuelto sale de la caja abierta como devolucion_abono, y lo retenido se reporta como ingreso por cancelación.
+- **RN-22** Al cancelar, la opción por defecto es devolver el total del abono. Solo un administrador puede elegir, como excepción, devolver parcial o retener, con motivo obligatorio. Lo devuelto sale de la caja abierta como devolucion_abono. Lo retenido se reporta como ingreso por cancelación, aparte de las ventas, y no suma en ventas ni en utilidad por producto.
 - **RN-23** Un encargo en estado en produccion ya no se puede editar. Si alguien lo intenta, el sistema le informa que el encargo está en producción y que solo un administrador puede cancelarlo.
 
 ## 9. API REST
@@ -511,11 +511,11 @@ Los puntos marcados se resolvieron el 16/10/2026 y ya están reflejados en el do
 
 ### Con el contador
 
-- ☐ Régimen tributario y tipo de impuesto que aplica a sus ventas (IVA o impuesto al consumo), y proveedor de facturación electrónica actual.
+- ☐ Régimen tributario y tipo de impuesto que aplica a sus ventas (IVA o impuesto al consumo), y proveedor de facturación electrónica actual. Sin definir al 17/10/2026; no bloquea hasta la fase 6.
 - ☒ Costeo PEPS por lote: aprobado (17/10/2026).
-- ☐ Tratamiento del abono retenido en una cancelación como ingreso (RN-22). Propuesta.
+- ☒ Abono en una cancelación (RN-22): por defecto se devuelve todo; si el admin retiene una parte, se reporta como ingreso por cancelación, no como venta (17/10/2026).
 - ☒ Cortesías registradas como gasto por su costo (RN-17): aprobado (17/10/2026).
-- ☐ Costo de los ajustes positivos de inventario (RN-10). Propuesta: costo del último lote.
-- ☐ Códigos PUC de las categorías de ingreso y gasto. Hay una propuesta para validar en [puc-propuesta.md](puc-propuesta.md).
+- ☒ Costo de los ajustes positivos de inventario (RN-10): costo del último lote (17/10/2026).
+- ☐ Códigos PUC de las categorías de ingreso y gasto. Hay una propuesta para validar en [puc-propuesta.md](puc-propuesta.md). Las mermas se reportan como gasto aparte (17/10/2026).
 - ☒ Propinas como dinero de terceros, fuera de los ingresos (RN-15).
 - ☒ El abono cuenta como venta al entregar el encargo (RN-20).
