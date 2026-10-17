@@ -4,7 +4,7 @@ Sistema web propio de Zuqui's Repostería: punto de venta, caja con arqueo, inve
 
 - [Especificación](docs/especificacion.md): requerimientos (RF, RNF, RN), modelo de datos, API, interfaz.
 - [Plan general](docs/PLAN.md): fases, entregables, pruebas, decisiones abiertas.
-- Trabajo pendiente: issues agrupados por milestone (Fase 0 a Fase 6).
+- Trabajo pendiente: [issues](https://github.com/LuChM27/zuquis/issues) agrupados por [milestone](https://github.com/LuChM27/zuquis/milestones) (Fase 0 a Fase 6). Antes de empezar, revisar las decisiones abiertas en #1 (contador) y #2 (huecos del modelo de datos).
 
 ## Stack
 
