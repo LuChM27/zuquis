@@ -1,0 +1,82 @@
+@import 'tailwindcss';
+@import '@fontsource/montserrat/400.css';
+@import '@fontsource/montserrat/500.css';
+@import '@fontsource/montserrat/600.css';
+@import '@fontsource/montserrat/700.css';
+@import '@fontsource/cormorant-garamond/500.css';
+@import '@fontsource/cormorant-garamond/600.css';
+
+/*
+ * Tokens tomados de los mockups (docs/mockups). Los valores se muestrearon de los PNG;
+ * no cambiarlos sin comparar contra el mockup.
+ */
+@theme {
+  --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Cormorant Garamond', ui-serif, Georgia, serif;
+
+  /* Marca */
+  --color-rosa: #f7c8da; /* sidebar, cabecera móvil */
+  --color-rosa-suave: #fce6ef; /* tarjeta de caja, badges, panel "se usa en recetas" */
+  --color-rosa-barra: #f2a9c6; /* barras no destacadas de gráficas */
+  --color-fucsia: #c42d72; /* botón principal, píldora activa, enlaces */
+  --color-fucsia-oscuro: #9e2259; /* horas, números de ranking, "Se usa primero" */
+  --color-dorado: #b08d3c; /* barras de lote, acentos */
+  --color-dorado-borde: #d9be7e; /* borde del ítem activo y paneles de detalle */
+  --color-dorado-claro: #ead9b4; /* borde de tarjetas */
+  --color-dorado-texto: #6e5418; /* "REPOSTERÍA", "DETALLE", chip de ejemplo */
+  --color-arena: #f3e7cc; /* fondo del chip "Datos de ejemplo" */
+
+  /* Superficies */
+  --color-crema: #fff8f4; /* fondo del área de trabajo */
+  --color-blanco: #ffffff; /* tarjetas */
+  --color-linea: #f4e9e1; /* separadores y bordes de ítems internos */
+  --color-pista: #f6ece6; /* pista de barras de progreso */
+
+  /* Texto */
+  --color-cafe: #4a3428; /* texto principal */
+  --color-cafe-medio: #6a5044; /* texto secundario dentro de tarjetas */
+  --color-cafe-suave: #7a5e50; /* línea de contexto, subtítulos, ejes, encabezados de tabla */
+
+  /* Estados */
+  --color-exito: #2e8a5f;
+  --color-exito-texto: #1f6b4a;
+  --color-exito-fondo: #e3f2ea;
+  --color-peligro: #b3261e;
+  --color-peligro-texto: #8e1f18;
+  --color-peligro-fondo: #fdecea;
+  --color-peligro-fila: #fff9f8;
+  --color-aviso: #8a5a00;
+  --color-aviso-texto: #6e4700;
+  --color-aviso-fondo: #fff3db;
+  --color-aviso-fila: #fffcf4;
+
+  --radius-tarjeta: 18px;
+  --radius-control: 12px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-crema font-sans text-cafe antialiased;
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+  /* La serif conserva sus números de estilo antiguo, como en los mockups. */
+  .font-serif {
+    font-variant-numeric: oldstyle-nums proportional-nums;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-fucsia);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
