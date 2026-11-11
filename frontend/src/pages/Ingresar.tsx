@@ -55,6 +55,7 @@ export function Ingresar() {
             ZUQUI&apos;S
           </h1>
           <p className="mt-2 text-xs font-semibold tracking-[0.2em] text-dorado-texto">REPOSTERÍA</p>
+          <p className="mt-1 font-caligrafica text-[26px] leading-none text-dorado-texto">Since 2020</p>
         </div>
 
         <form onSubmit={enviar} className="mt-8 flex flex-col gap-5" noValidate>

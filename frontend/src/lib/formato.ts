@@ -64,3 +64,9 @@ export function saludo(fecha: Date): string {
   if (h < 19) return 'Buenas tardes'
   return 'Buenas noches'
 }
+
+/** Deja solo dígitos: "$ 12.500" → 12500; vacío → null. */
+export function leerPesos(texto: string): number | null {
+  const digitos = texto.replace(/\D/g, '').replace(/^0+(?=\d)/, '')
+  return digitos === '' ? null : Number(digitos)
+}

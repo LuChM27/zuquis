@@ -6,7 +6,7 @@ import { forwardRef, useId, type ButtonHTMLAttributes, type InputHTMLAttributes,
 
 const unir = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(' ')
 
-type Variante = 'primario' | 'secundario'
+type Variante = 'primario' | 'secundario' | 'peligro'
 
 export function Boton({
   variante = 'primario',
@@ -22,6 +22,8 @@ export function Boton({
         variante === 'primario' && 'bg-fucsia font-bold text-white hover:bg-fucsia-oscuro',
         variante === 'secundario' &&
           'border border-dorado-claro bg-blanco font-medium text-cafe hover:border-dorado-borde',
+        variante === 'peligro' &&
+          'border border-peligro/40 bg-blanco font-semibold text-peligro-texto hover:bg-peligro-fondo',
         className,
       )}
     />

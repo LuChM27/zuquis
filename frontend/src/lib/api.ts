@@ -76,15 +76,28 @@ async function crudo(ruta: string, init: RequestInit = {}): Promise<Response> {
   }
 }
 
-/** Renueva la sesión con la cookie. Varias llamadas simultáneas comparten una sola renovación. */
+const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * Renueva la sesión con la cookie. Varias llamadas simultáneas de esta pestaña comparten una
+ * sola renovación. Si otra pestaña renovó al mismo tiempo, el backend responde REFRESH_ROTADO
+ * y la cookie nueva ya está (o está por llegar) en el navegador: se reintenta en vez de cerrar
+ * la sesión.
+ */
 export function renovarSesion(): Promise<TokenSalida> {
   renovando ??= (async () => {
     try {
-      const r = await crudo('/auth/refresh', { method: 'POST' })
-      if (!r.ok) throw await leerError(r)
-      const datos: TokenSalida = await r.json()
-      fijarToken(datos.access_token)
-      return datos
+      for (let intento = 0; ; intento++) {
+        const r = await crudo('/auth/refresh', { method: 'POST' })
+        if (r.ok) {
+          const datos: TokenSalida = await r.json()
+          fijarToken(datos.access_token)
+          return datos
+        }
+        const error = await leerError(r)
+        if (error.codigo !== 'REFRESH_ROTADO' || intento >= 2) throw error
+        await esperar(300 * (intento + 1))
+      }
     } finally {
       renovando = null
     }

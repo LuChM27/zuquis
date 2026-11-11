@@ -35,3 +35,6 @@ Thumbs.db
 # Desarrollo local
 .archivos-dev/
 dev-dist/
+
+# Playwright
+blob-report/

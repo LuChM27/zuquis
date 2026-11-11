@@ -5,6 +5,7 @@
 @import '@fontsource/montserrat/700.css';
 @import '@fontsource/cormorant-garamond/500.css';
 @import '@fontsource/cormorant-garamond/600.css';
+@import '@fontsource/great-vibes/400.css';
 
 /*
  * Tokens tomados de los mockups (docs/mockups). Los valores se muestrearon de los PNG;
@@ -13,6 +14,8 @@
 @theme {
   --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
   --font-serif: 'Cormorant Garamond', ui-serif, Georgia, serif;
+  /* Caligráfica: solo login y estados vacíos (especificación §10.3). */
+  --font-caligrafica: 'Great Vibes', cursive;
 
   /* Marca */
   --color-rosa: #f7c8da; /* sidebar, cabecera móvil */
@@ -38,7 +41,7 @@
   --color-cafe-suave: #7a5e50; /* línea de contexto, subtítulos, ejes, encabezados de tabla */
 
   /* Estados */
-  --color-exito: #2e8a5f;
+  --color-exito: #2e8a5f; /* punto de "caja abierta", interruptores; para texto usar exito-texto (AA) */
   --color-exito-texto: #1f6b4a;
   --color-exito-fondo: #e3f2ea;
   --color-peligro: #b3261e;
@@ -69,6 +72,13 @@
   :focus-visible {
     outline: 2px solid var(--color-fucsia);
     outline-offset: 2px;
+  }
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
 }
 

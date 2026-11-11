@@ -4,6 +4,10 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const proxy = {
+  '/api': { target: process.env.API_URL ?? 'http://localhost:8000', changeOrigin: true },
+}
+
 export default defineConfig({
   plugins: [
     react(),
@@ -24,12 +28,12 @@ export default defineConfig({
       workbox: { navigateFallbackDenylist: [/^\/api\//] },
     }),
   ],
-  server: {
-    proxy: { '/api': { target: process.env.API_URL ?? 'http://localhost:8000', changeOrigin: true } },
-  },
+  server: { proxy },
+  preview: { proxy },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
     css: false,
   },
 })

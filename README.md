@@ -1,5 +1,7 @@
 # Zuqui's — Sistema contable e inventario
 
+[![CI](https://github.com/LuChM27/zuquis/actions/workflows/ci.yml/badge.svg)](https://github.com/LuChM27/zuquis/actions/workflows/ci.yml)
+
 Sistema web propio de Zuqui's Repostería: punto de venta, caja con arqueo, inventario por lotes con costeo PEPS, recetas, compras, producción, encargos con abonos, domicilios, gastos y reportes.
 
 - [Especificación](docs/especificacion.md): requerimientos (RF, RNF, RN), modelo de datos, API, interfaz.
