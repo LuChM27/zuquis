@@ -22,6 +22,22 @@ from app.shared.dinero import MontoPesos, NumericCantidad
 
 TIPOS_PRODUCTO = ("preparado", "lote")
 
+# Categorías con que arranca cada sede (RF-01): (nombre, ícono de Lucide).
+CATEGORIAS_INICIALES = (
+    ("Panadería", "croissant"),
+    ("Salado", "sandwich"),
+    ("Saludable", "salad"),
+    ("Heladería", "ice-cream-cone"),
+    ("Bebidas calientes", "coffee"),
+    ("Bebidas frías y granizados", "glass-water"),
+    ("Café frío", "cup-soda"),
+    ("Sodas", "cup-soda"),
+    ("Otras bebidas", "glass-water"),
+    ("Malteadas", "milk"),
+    ("Dulcería", "cake-slice"),
+    ("Adiciones", "plus"),
+)
+
 producto_modificadores = Table(
     "producto_modificadores",
     Base.metadata,

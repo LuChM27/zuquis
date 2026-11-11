@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import Contexto
 from app.modules.auditoria.service import auditar, instantanea
+from app.modules.carta.models import CATEGORIAS_INICIALES, Categoria
 from app.modules.configuracion.models import Configuracion, MetodoPago, Sede
 from app.modules.configuracion.schemas import (
     CLAVES,
@@ -188,6 +189,8 @@ def crear_sede(db: Session, ctx: Contexto, datos: SedeCrear) -> Sede:
                 sede_id=sede.id, nombre=nombre, es_efectivo=efectivo, cuenta_puc=puc, orden=orden
             )
         )
+    for orden, (nombre, icono) in enumerate(CATEGORIAS_INICIALES, start=1):
+        db.add(Categoria(sede_id=sede.id, nombre=nombre, orden=orden, icono=icono))
     db.flush()
     auditar(db, ctx, "crear", "sedes", sede.id, despues=instantanea(sede, _CAMPOS_SEDE))
     return sede

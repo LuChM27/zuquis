@@ -111,3 +111,14 @@ def test_null_en_campo_obligatorio_es_error_de_validacion(cliente, admin):
     r = cliente.patch(f"/api/v1/sedes/{sede['id']}", headers=admin, json={"telefono": None})
     assert r.status_code == 200
     assert r.json()["telefono"] is None
+
+
+def test_sede_nueva_trae_las_categorias_de_la_carta(cliente, admin, db):
+    from app.modules.carta.models import Categoria
+
+    sede = cliente.post("/api/v1/sedes", headers=admin, json={"nombre": "Sede norte"}).json()
+    nombres = db.scalars(
+        select(Categoria.nombre).where(Categoria.sede_id == sede["id"]).order_by(Categoria.orden)
+    ).all()
+    assert len(nombres) == 12
+    assert nombres[0] == "Panadería"
