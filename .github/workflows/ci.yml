@@ -108,7 +108,6 @@ jobs:
         working-directory: frontend
         run: |
           npm ci
-          npx playwright install --with-deps chromium
           npm run e2e
       - if: failure()
         uses: actions/upload-artifact@v4

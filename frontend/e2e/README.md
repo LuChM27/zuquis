@@ -9,4 +9,4 @@ Corren contra la API real. Antes de ejecutarlas:
 3. `npm run e2e`
 
 Las pruebas crean, si no existe, el usuario `cajero.e2e@zuquis.local` para verificar permisos.
-En local usan el Chrome instalado; en CI, Chromium de Playwright.
+Usan el Google Chrome instalado (en CI, el que traen los runners de GitHub).
