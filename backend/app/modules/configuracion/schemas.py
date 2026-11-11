@@ -8,6 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from app.shared.dinero import Porcentaje
+from app.shared.esquemas import EdicionParcial
 
 
 class DatosNegocio(BaseModel):
@@ -63,7 +64,9 @@ class MetodoPagoCrear(BaseModel):
     orden: int = 0
 
 
-class MetodoPagoEditar(BaseModel):
+class MetodoPagoEditar(EdicionParcial):
+    NO_NULOS = ("nombre", "titular", "activo", "orden")
+
     nombre: str | None = Field(default=None, min_length=2, max_length=60)
     titular: Titular | None = None
     cuenta_puc: str | None = Field(default=None, max_length=10, pattern=r"^\d{1,10}$")
@@ -85,7 +88,9 @@ class SedeCrear(BaseModel):
     telefono: str | None = Field(default=None, max_length=40)
 
 
-class SedeEditar(BaseModel):
+class SedeEditar(EdicionParcial):
+    NO_NULOS = ("nombre", "activa")
+
     nombre: str | None = Field(default=None, min_length=2, max_length=120)
     direccion: str | None = Field(default=None, max_length=200)
     telefono: str | None = Field(default=None, max_length=40)

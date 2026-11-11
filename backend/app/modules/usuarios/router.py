@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.db import obtener_db
-from app.core.deps import Contexto, requiere
+from app.core.deps import Contexto, requiere, requiere_alguno
 from app.modules.usuarios import service
 from app.modules.usuarios.models import Permiso
 from app.modules.usuarios.schemas import (
@@ -30,7 +30,11 @@ def listar_permisos(
 
 
 @router.get("/roles", response_model=list[RolSalida])
-def listar_roles(_: Contexto = Depends(admin), db: Session = Depends(obtener_db)):
+def listar_roles(
+    # La sección Negocio también los lista para fijar los topes de descuento.
+    _: Contexto = Depends(requiere_alguno("usuarios.gestionar", "config.editar")),
+    db: Session = Depends(obtener_db),
+):
     return service.listar_roles(db)
 
 

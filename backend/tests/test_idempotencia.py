@@ -143,3 +143,54 @@ def test_dos_peticiones_simultaneas_ejecutan_una_sola_vez(usuario_real):
     assert [r.status_code for r in respuestas] == [201, 201]
     with SesionLocal() as s:
         assert _ejecuciones(s, str(valor)) == 1
+
+
+def test_clave_vencida_con_reintentos_simultaneos_ejecuta_una_sola_vez(usuario_real):
+    """Dos reintentos a la vez con una clave vencida: uno la toma, el otro reproduce la respuesta
+    (antes chocaban en el índice único y uno devolvía 500)."""
+    from datetime import timedelta
+
+    from app.shared.fechas import ahora
+
+    clave = f"vencida-{uuid.uuid4()}"
+    with SesionLocal() as s:
+        s.add(
+            Registro(
+                usuario_id=usuario_real.id,
+                clave=clave,
+                ruta="POST /api/v1/_prueba/operacion",
+                hash_cuerpo="viejo",
+                expira_en=ahora() - timedelta(hours=1),
+                estado_http=201,
+                respuesta={"viejo": True},
+            )
+        )
+        s.commit()
+
+    app = crear_app(sincronizar_al_iniciar=False)
+    liberar = threading.Event()
+    _montar_ruta(app, retraso=liberar)
+    cliente = TestClient(app)
+    token = cliente.post(
+        "/api/v1/auth/login", json={"email": usuario_real.email, "password": CLAVE}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}", "Idempotency-Key": clave}
+    valor = 2000 + uuid.uuid4().int % 1000
+    respuestas = []
+
+    def enviar():
+        respuestas.append(
+            cliente.post("/api/v1/_prueba/operacion", headers=headers, json={"valor": valor})
+        )
+
+    hilos = [threading.Thread(target=enviar) for _ in range(2)]
+    for h in hilos:
+        h.start()
+    threading.Timer(0.5, liberar.set).start()
+    for h in hilos:
+        h.join(timeout=10)
+
+    assert [r.status_code for r in respuestas] == [201, 201]
+    assert all(r.json() == {"ejecutada": True, "valor": valor} for r in respuestas)
+    with SesionLocal() as s:
+        assert _ejecuciones(s, str(valor)) == 1

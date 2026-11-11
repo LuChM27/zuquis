@@ -11,7 +11,7 @@ from app.core.seguridad import hashear_clave
 from app.modules.auditoria.service import auditar, instantanea
 from app.modules.auth.models import SesionRefresh, Usuario
 from app.modules.auth.service import normalizar_email, revocar_familia
-from app.modules.configuracion.models import Sede
+from app.modules.configuracion.models import Configuracion, Sede
 from app.modules.usuarios.models import Permiso, Rol, UsuarioRol, rol_permisos
 from app.modules.usuarios.schemas import (
     AsignacionRol,
@@ -161,9 +161,22 @@ def eliminar_rol(db: Session, ctx: Contexto, rol_id: uuid.UUID) -> None:
             {"usuarios": usuarios},
         )
     antes = _foto_rol(rol)
+    _quitar_tope_de_descuento(db, rol.id)
     db.delete(rol)
     db.flush()
     auditar(db, ctx, "eliminar", "roles", rol_id, antes=antes)
+
+
+def _quitar_tope_de_descuento(db: Session, rol_id: uuid.UUID) -> None:
+    """Un rol eliminado no puede quedar en los topes de descuento de ninguna sede: la
+    configuración se valida completa al guardarla y fallaría con un rol inexistente."""
+    filas = db.scalars(
+        select(Configuracion).where(Configuracion.clave == "tope_descuento_por_rol")
+    ).all()
+    for fila in filas:
+        topes = dict(fila.valor.get("v") or {})
+        if topes.pop(str(rol_id), None) is not None:
+            fila.valor = {"v": topes}
 
 
 def verificar_queda_administrador(db: Session) -> None:

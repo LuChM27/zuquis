@@ -3,6 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.shared.esquemas import EdicionParcial
+
 
 class PermisoSalida(BaseModel):
     clave: str
@@ -26,7 +28,9 @@ class RolCrear(BaseModel):
     permisos: list[str] = Field(default_factory=list)
 
 
-class RolEditar(BaseModel):
+class RolEditar(EdicionParcial):
+    NO_NULOS = ("nombre", "activo", "permisos")
+
     nombre: str | None = Field(default=None, min_length=2, max_length=80)
     descripcion: str | None = Field(default=None, max_length=200)
     activo: bool | None = None
@@ -59,7 +63,9 @@ class UsuarioCrear(BaseModel):
     roles: list[AsignacionRol] = Field(min_length=1)
 
 
-class UsuarioEditar(BaseModel):
+class UsuarioEditar(EdicionParcial):
+    NO_NULOS = ("nombre", "email", "password", "activo", "roles")
+
     nombre: str | None = Field(default=None, min_length=2, max_length=120)
     email: str | None = Field(
         default=None, min_length=3, max_length=200, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$"

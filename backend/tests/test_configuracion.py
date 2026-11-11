@@ -96,3 +96,18 @@ def test_unidades(cliente, admin):
         "ml",
         "und",
     ]
+
+
+def test_null_en_campo_obligatorio_es_error_de_validacion(cliente, admin):
+    """Antes llegaba a la columna NOT NULL: 409 equivocado en métodos y 500 en sedes."""
+    metodo = cliente.get("/api/v1/metodos-pago", headers=admin).json()[0]
+    r = cliente.patch(f"/api/v1/metodos-pago/{metodo['id']}", headers=admin, json={"nombre": None})
+    assert r.status_code == 422
+    assert r.json()["codigo"] == "VALIDACION"
+    sede = cliente.get("/api/v1/sedes", headers=admin).json()[0]
+    r = cliente.patch(f"/api/v1/sedes/{sede['id']}", headers=admin, json={"activa": None})
+    assert r.status_code == 422
+    # Un null en un campo opcional sí borra el valor.
+    r = cliente.patch(f"/api/v1/sedes/{sede['id']}", headers=admin, json={"telefono": None})
+    assert r.status_code == 200
+    assert r.json()["telefono"] is None

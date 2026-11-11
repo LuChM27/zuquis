@@ -23,8 +23,10 @@ services:
         required: false
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://zuquis:zuquis@db:5432/zuquis}
-      JWT_SECRET: ${JWT_SECRET:-solo-para-desarrollo-no-usar-en-produccion}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env (ver .env.example)}
       ARCHIVOS_DIR: /data/archivos
+      # Confía en X-Forwarded-For solo si viene del contenedor web (red interna de Docker).
+      FORWARDED_ALLOW_IPS: ${FORWARDED_ALLOW_IPS:-127.0.0.1,172.16.0.0/12}
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
     ports:
       - "8000:8000"

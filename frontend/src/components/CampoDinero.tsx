@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { unir } from '../lib/clases'
-import { leerPesos } from '../lib/formato'
+import { leerPesos, leerPesosPegados } from '../lib/formato'
 
 const miles = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0, useGrouping: 'always' })
 
@@ -47,6 +47,10 @@ export function CampoDinero({
           aria-describedby={error ? `${id}-error` : undefined}
           value={valor === null ? '' : miles.format(valor)}
           onChange={(e) => alCambiar(leerPesos(e.target.value))}
+          onPaste={(e) => {
+            e.preventDefault()
+            alCambiar(leerPesosPegados(e.clipboardData.getData('text')))
+          }}
           className="min-w-0 flex-1 bg-transparent text-right text-[17px] font-semibold tabular-nums focus:outline-none"
         />
       </div>

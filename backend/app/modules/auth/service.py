@@ -18,7 +18,7 @@ from app.core.seguridad import (
 from app.modules.auditoria.service import auditar
 from app.modules.auth.models import SesionRefresh, Usuario
 from app.modules.configuracion.models import Sede
-from app.modules.usuarios.models import UsuarioRol
+from app.modules.usuarios.models import Rol, UsuarioRol
 from app.shared.errores import Conflicto, ErrorNegocio, NoAutenticado
 from app.shared.fechas import ahora
 
@@ -41,10 +41,12 @@ def normalizar_email(email: str) -> str:
 
 
 def sedes_del_usuario(db: Session, usuario_id: uuid.UUID) -> list[Sede]:
+    """Sedes donde el usuario tiene al menos un rol activo (las mismas que dan permisos)."""
     consulta = (
         select(Sede)
         .join(UsuarioRol, UsuarioRol.sede_id == Sede.id)
-        .where(UsuarioRol.usuario_id == usuario_id, Sede.activa)
+        .join(Rol, Rol.id == UsuarioRol.rol_id)
+        .where(UsuarioRol.usuario_id == usuario_id, Sede.activa, Rol.activo)
         .distinct()
         .order_by(Sede.nombre)
     )
@@ -88,6 +90,12 @@ def iniciar_sesion(
         raise NoAutenticado("Usuario o contraseña incorrectos.", "CREDENCIALES_INVALIDAS")
 
     if usuario.bloqueado_hasta and usuario.bloqueado_hasta > ahora():
+        # Con contraseña equivocada se responde igual que a un correo inexistente: el bloqueo
+        # no debe revelar qué correos existen. Tampoco se extiende el bloqueo, para que nadie
+        # pueda mantener bloqueada la cuenta de otra persona.
+        if not verificar_clave(usuario.password_hash, clave):
+            auditar(db, None, "login_fallido", "usuarios", usuario.id, usuario_id=usuario.id, ip=ip)
+            raise NoAutenticado("Usuario o contraseña incorrectos.", "CREDENCIALES_INVALIDAS")
         raise ErrorNegocio(
             "USUARIO_BLOQUEADO",
             "Demasiados intentos fallidos. Intenta de nuevo más tarde.",
@@ -158,6 +166,12 @@ def renovar(db: Session, refresh_token: str | None) -> Sesion:
     if usuario is None or not usuario.activo or sede is None or not sede.activa:
         revocar_familia(db, actual.familia_id)
         raise NoAutenticado("El usuario no está activo.", "USUARIO_INACTIVO")
+    if sede.id not in {s.id for s in sedes_del_usuario(db, usuario.id)}:
+        revocar_familia(db, actual.familia_id)
+        raise NoAutenticado(
+            "Tu usuario ya no tiene roles activos en esta sede. Habla con el administrador.",
+            "SIN_ROLES",
+        )
 
     nueva, refresh = _abrir_sesion(db, usuario, sede, actual.familia_id)
     actual.revocado_en = ahora()

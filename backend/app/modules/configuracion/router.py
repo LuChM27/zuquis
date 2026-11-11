@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.db import obtener_db
-from app.core.deps import Contexto, obtener_contexto, requiere
+from app.core.deps import Contexto, obtener_contexto, requiere, requiere_alguno
 from app.modules.configuracion import service
 from app.modules.configuracion.models import Sede, Unidad
 from app.modules.configuracion.schemas import (
@@ -72,7 +72,11 @@ def editar_metodo(
 
 
 @router.get("/sedes", response_model=list[SedeSalida])
-def listar_sedes(_: Contexto = Depends(editor), db: Session = Depends(obtener_db)):
+def listar_sedes(
+    # Usuarios también las lista para asignar roles por sede.
+    _: Contexto = Depends(requiere_alguno("config.editar", "usuarios.gestionar")),
+    db: Session = Depends(obtener_db),
+):
     return list(db.scalars(select(Sede).order_by(Sede.nombre)))
 
 

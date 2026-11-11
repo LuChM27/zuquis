@@ -147,3 +147,54 @@ def test_cambiar_roles_reemplaza_asignaciones(cliente, admin, crear_usuario, db)
         db.scalars(select(UsuarioRol).where(UsuarioRol.usuario_id == usuario.id)).all()[0].rol_id
         == contador.id
     )
+
+
+def test_eliminar_rol_quita_su_tope_de_descuento(cliente, admin):
+    """Antes el id quedaba en la configuración y toda edición de Negocio fallaba con 404."""
+    rol_id = cliente.post("/api/v1/roles", headers=admin, json={"nombre": "Temporal"}).json()["id"]
+    r = cliente.patch(
+        "/api/v1/configuracion", headers=admin, json={"tope_descuento_por_rol": {rol_id: "10"}}
+    )
+    assert r.status_code == 200
+    assert cliente.delete(f"/api/v1/roles/{rol_id}", headers=admin).status_code == 204
+
+    config = cliente.get("/api/v1/configuracion", headers=admin).json()
+    assert rol_id not in config["tope_descuento_por_rol"]
+    r = cliente.patch(
+        "/api/v1/configuracion",
+        headers=admin,
+        json={
+            "tope_descuento_por_rol": config["tope_descuento_por_rol"],
+            "dias_alerta_vencimiento": 4,
+        },
+    )
+    assert r.status_code == 200
+
+
+def test_configuracion_y_usuarios_se_ven_entre_si_lo_necesario(
+    cliente, admin, login, crear_usuario, db
+):
+    """Quien solo administra usuarios necesita las sedes; quien solo edita la configuración
+    necesita los roles (para los topes de descuento)."""
+
+    def usuario_con(*permisos):
+        rol = cliente.post(
+            "/api/v1/roles",
+            headers=admin,
+            json={"nombre": f"Solo {permisos[0]}", "permisos": list(permisos)},
+        ).json()
+        u = crear_usuario()
+        cliente.patch(
+            f"/api/v1/usuarios/{u.id}",
+            headers=admin,
+            json={"roles": [{"rol_id": rol["id"], "sede_id": str(SEDE_PRINCIPAL)}]},
+        )
+        return login(u)
+
+    gestor = usuario_con("usuarios.gestionar")
+    assert cliente.get("/api/v1/sedes", headers=gestor).status_code == 200
+    editor = usuario_con("config.editar")
+    assert cliente.get("/api/v1/roles", headers=editor).status_code == 200
+    # Ver no da permiso para cambiar.
+    assert cliente.post("/api/v1/sedes", headers=gestor, json={"nombre": "Otra"}).status_code == 403
+    assert cliente.post("/api/v1/roles", headers=editor, json={"nombre": "Otro"}).status_code == 403

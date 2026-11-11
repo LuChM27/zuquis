@@ -18,10 +18,24 @@ export function Negocio() {
     return <Aviso>No pudimos cargar la configuración. Recarga la página para intentarlo de nuevo.</Aviso>
   }
   if (!config.data || !roles.data) return null
-  return <FormNegocio config={config.data} roles={roles.data.filter((r) => r.activo)} />
+  return (
+    <FormNegocio
+      config={config.data}
+      roles={roles.data.filter((r) => r.activo)}
+      existentes={new Set(roles.data.map((r) => r.id))}
+    />
+  )
 }
 
-function FormNegocio({ config, roles }: { config: Configuracion; roles: Rol[] }) {
+function FormNegocio({
+  config,
+  roles,
+  existentes,
+}: {
+  config: Configuracion
+  roles: Rol[]
+  existentes: Set<string>
+}) {
   const n = config.negocio
   const [nombre, setNombre] = useState(n.nombre)
   const [nit, setNit] = useState(n.nit ?? '')
@@ -46,8 +60,11 @@ function FormNegocio({ config, roles }: { config: Configuracion; roles: Rol[] })
     const e: Record<string, string> = {}
     if (nombre.trim().length < 2) e.nombre = 'Escribe el nombre del negocio.'
     if (!/^\d+$/.test(dias) || Number(dias) > 60) e.dias = 'Escribe un número de días entre 0 y 60.'
-    // Se parte de los topes guardados para no perder los de roles inactivos.
-    const topesApi: Record<string, string> = { ...config.tope_descuento_por_rol }
+    // Se parte de los topes guardados para no perder los de roles inactivos, pero sin los de
+    // roles que ya no existen (el backend rechazaría toda la configuración).
+    const topesApi: Record<string, string> = Object.fromEntries(
+      Object.entries(config.tope_descuento_por_rol).filter(([id]) => existentes.has(id)),
+    )
     for (const r of roles) {
       const t = (topes[r.id] ?? '0').replace(',', '.').trim() || '0'
       if (!/^\d{1,3}(\.\d{1,2})?$/.test(t) || Number(t) > 100) e[`tope-${r.id}`] = 'Entre 0 y 100.'

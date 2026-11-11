@@ -1,5 +1,5 @@
 import { aPesos, cantidad, costoLinea, dec, porcentajeDe } from './decimal'
-import { leerPesos } from './formato'
+import { leerPesos, leerPesosPegados } from './formato'
 
 describe('decimales', () => {
   it('rechaza números: los decimales viajan como texto', () => {
@@ -38,5 +38,16 @@ describe('campo de dinero', () => {
     expect(leerPesos('007')).toBe(7)
     expect(leerPesos('')).toBeNull()
     expect(leerPesos('abc')).toBeNull()
+  })
+  it('al escribir, borrar un dígito de 1.000 deja 100 (no centavos)', () => {
+    expect(leerPesos('1.00')).toBe(100)
+  })
+  it('al pegar, no confunde centavos con miles', () => {
+    expect(leerPesosPegados('12.500,00')).toBe(12500)
+    expect(leerPesosPegados('12500.50')).toBe(12501)
+    expect(leerPesosPegados('12500,4')).toBe(12500)
+    expect(leerPesosPegados('$ 1.250.000')).toBe(1250000)
+    expect(leerPesosPegados('12.500')).toBe(12500)
+    expect(leerPesosPegados('')).toBeNull()
   })
 })

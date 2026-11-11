@@ -5,7 +5,8 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 const proxy = {
-  '/api': { target: process.env.API_URL ?? 'http://localhost:8000', changeOrigin: true },
+  // xfwd: envía X-Forwarded-For para que el límite de intentos y la auditoría vean la IP real.
+  '/api': { target: process.env.API_URL ?? 'http://localhost:8000', changeOrigin: true, xfwd: true },
 }
 
 export default defineConfig({
@@ -14,7 +15,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['logo.png'],
+      includeAssets: ['logo.png', 'apple-touch-icon.png'],
       manifest: {
         name: "Zuqui's Repostería",
         short_name: "Zuqui's",
@@ -23,7 +24,11 @@ export default defineConfig({
         theme_color: '#F7C8DA',
         background_color: '#FFF8F4',
         display: 'standalone',
-        icons: [{ src: 'logo.png', sizes: '132x132', type: 'image/png' }],
+        icons: [
+          { src: 'icono-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icono-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icono-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
       workbox: { navigateFallbackDenylist: [/^\/api\//] },
     }),

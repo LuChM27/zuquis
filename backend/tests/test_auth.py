@@ -167,3 +167,49 @@ def test_usuario_inactivo_no_entra(cliente, crear_usuario, db):
     db.commit()
     r = cliente.post(LOGIN, json={"email": usuario.email, "password": CLAVE})
     assert r.status_code == 401
+
+
+def test_bloqueado_con_clave_mala_responde_igual_que_correo_inexistente(cliente, crear_usuario):
+    """El bloqueo no revela qué correos existen: solo quien sabe la contraseña ve el 423."""
+    usuario = crear_usuario("cajero")
+    for _ in range(5):
+        cliente.post(LOGIN, json={"email": usuario.email, "password": "mala"})
+    con_clave_mala = cliente.post(LOGIN, json={"email": usuario.email, "password": "mala"})
+    inexistente = cliente.post(LOGIN, json={"email": "nadie@zuquis.test", "password": "mala"})
+    assert con_clave_mala.status_code == inexistente.status_code == 401
+    assert con_clave_mala.json() == inexistente.json()
+    assert cliente.post(LOGIN, json={"email": usuario.email, "password": CLAVE}).status_code == 423
+
+
+def test_usuario_con_roles_inactivos_no_entra_ni_renueva(cliente, crear_usuario, admin, db):
+    from tests.conftest import rol_base
+
+    usuario = crear_usuario("contador")
+    r = cliente.post(LOGIN, json={"email": usuario.email, "password": CLAVE})
+    assert r.status_code == 200
+    contador = rol_base(db, "contador")
+    assert (
+        cliente.patch(
+            f"/api/v1/roles/{contador.id}", headers=admin, json={"activo": False}
+        ).status_code
+        == 409  # rol base con usuarios: no se desactiva
+    )
+    # Se reemplaza por un rol propio y luego se desactiva ese rol.
+    rol = cliente.post(
+        "/api/v1/roles", headers=admin, json={"nombre": "Temporal", "permisos": ["reportes.ver"]}
+    ).json()
+    cliente.patch(
+        f"/api/v1/usuarios/{usuario.id}",
+        headers=admin,
+        json={"roles": [{"rol_id": rol["id"], "sede_id": str(SEDE_PRINCIPAL)}]},
+    )
+    assert (
+        cliente.patch(
+            f"/api/v1/roles/{rol['id']}", headers=admin, json={"activo": False}
+        ).status_code
+        == 200
+    )
+
+    r = cliente.post(LOGIN, json={"email": usuario.email, "password": CLAVE})
+    assert r.status_code == 401
+    assert r.json()["codigo"] == "SIN_ROLES"

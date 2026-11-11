@@ -26,7 +26,7 @@ from typing import Any
 from fastapi import Header, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -57,31 +57,44 @@ class Idempotencia:
             "hash_cuerpo": self.hash_cuerpo,
             "expira_en": ahora() + VIGENCIA,
         }
-        insertada = db.execute(
-            insert(RegistroIdempotencia)
-            .values(**valores)
-            .on_conflict_do_nothing(index_elements=["usuario_id", "clave"])
-            .returning(RegistroIdempotencia.id)
-        ).scalar_one_or_none()
-        if insertada is not None:
-            return None
+        for _ in range(3):
+            insertada = db.execute(
+                insert(RegistroIdempotencia)
+                .values(**valores)
+                .on_conflict_do_nothing(index_elements=["usuario_id", "clave"])
+                .returning(RegistroIdempotencia.id)
+            ).scalar_one_or_none()
+            if insertada is not None:
+                return None
 
-        previa = db.scalar(
-            select(RegistroIdempotencia).where(
-                RegistroIdempotencia.usuario_id == ctx.usuario_id,
-                RegistroIdempotencia.clave == self.clave,
-            )
-        )
-        if previa is None or previa.expira_en <= ahora():
-            # Venció: se descarta y se trata como clave nueva.
-            db.execute(
-                delete(RegistroIdempotencia).where(
+            # Si la clave venció, se toma de forma atómica: el UPDATE bloquea la fila, así que
+            # un reintento simultáneo espera y luego ve la clave ya vigente (o vencida otra vez
+            # si esta operación falló y se revirtió).
+            tomada = db.execute(
+                update(RegistroIdempotencia)
+                .where(
+                    RegistroIdempotencia.usuario_id == ctx.usuario_id,
+                    RegistroIdempotencia.clave == self.clave,
+                    RegistroIdempotencia.expira_en <= ahora(),
+                )
+                .values(**valores, estado_http=None, respuesta=None)
+                .returning(RegistroIdempotencia.id)
+            ).scalar_one_or_none()
+            if tomada is not None:
+                return None
+
+            previa = db.scalar(
+                select(RegistroIdempotencia).where(
                     RegistroIdempotencia.usuario_id == ctx.usuario_id,
                     RegistroIdempotencia.clave == self.clave,
                 )
             )
-            db.execute(insert(RegistroIdempotencia).values(**valores))
-            return None
+            if previa is not None:
+                break
+            # La fila se borró entre medias (limpieza de vencidas): se intenta de nuevo.
+        else:
+            raise Conflicto("IDEMPOTENCIA_EN_PROCESO", "La operación todavía se está procesando.")
+
         if previa.ruta != self.ruta or previa.hash_cuerpo != self.hash_cuerpo:
             raise Conflicto(
                 "IDEMPOTENCIA_CONFLICTO",

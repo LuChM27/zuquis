@@ -65,8 +65,20 @@ export function saludo(fecha: Date): string {
   return 'Buenas noches'
 }
 
-/** Deja solo dígitos: "$ 12.500" → 12500; vacío → null. */
+/** Lo que se escribe en el campo: solo dígitos. "$ 12.500" → 12500; vacío → null. */
 export function leerPesos(texto: string): number | null {
   const digitos = texto.replace(/\D/g, '').replace(/^0+(?=\d)/, '')
   return digitos === '' ? null : Number(digitos)
+}
+
+/**
+ * Lo que se pega (de un extracto, una calculadora): un separador seguido de 1 o 2 dígitos al
+ * final son centavos ("12.500,00", "12500.50") y se redondean a peso en vez de pegarse a la
+ * cifra. No se usa al escribir: borrar un dígito de "1.000" deja "1.00", que no son centavos.
+ */
+export function leerPesosPegados(texto: string): number | null {
+  const centavos = /[.,](\d{1,2})\s*$/.exec(texto)
+  if (!centavos) return leerPesos(texto)
+  const entera = leerPesos(texto.slice(0, centavos.index)) ?? 0
+  return entera + (Number(centavos[1].padEnd(2, '0')) >= 50 ? 1 : 0)
 }
