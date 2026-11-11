@@ -8,11 +8,13 @@ const ADMIN = {
 const CAJERO = { email: 'cajero.e2e@zuquis.local', clave: 'cajero-e2e-123' }
 const API = process.env.E2E_API_URL ?? 'http://localhost:8000/api/v1'
 
-async function ingresar(page: Page, email: string, clave: string) {
+async function ingresar(page: Page, email: string, clave: string, { esperar = true } = {}) {
   await page.goto('/ingresar')
   await page.getByLabel('Correo').fill(email)
   await page.getByLabel('Contraseña', { exact: true }).fill(clave)
   await page.getByRole('button', { name: 'Entrar' }).click()
+  // Espera a que el login termine (y llegue la cookie) antes de navegar o recargar.
+  if (esperar) await expect(page).not.toHaveURL(/\/ingresar$/)
 }
 
 test.beforeAll(async ({ request }) => {
@@ -37,7 +39,7 @@ test('login correcto lleva al inicio con el menú completo', async ({ page }) =>
 })
 
 test('login fallido muestra el error sin entrar', async ({ page }) => {
-  await ingresar(page, 'nadie@zuquis.local', 'clave-incorrecta')
+  await ingresar(page, 'nadie@zuquis.local', 'clave-incorrecta', { esperar: false })
   await expect(page.getByRole('alert')).toContainText('Usuario o contraseña incorrectos')
   await expect(page).toHaveURL(/\/ingresar$/)
 })
@@ -58,7 +60,6 @@ test('un cajero no ve ni puede abrir rutas restringidas', async ({ page }) => {
 
 test('recargar conserva la sesión; sin la cookie de renovación vuelve al login', async ({ page, context }) => {
   await ingresar(page, ADMIN.email, ADMIN.clave)
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await page.reload()
   await expect(page).not.toHaveURL(/\/ingresar/)
   await expect(page.getByRole('navigation', { name: 'Principal' })).toBeVisible()
