@@ -14,7 +14,7 @@ def test_union_de_permisos_de_dos_roles(cliente, crear_usuario, login):
 
 def test_sin_permiso_responde_403(cliente, crear_usuario, login):
     headers = login(crear_usuario("cajero"))
-    r = cliente.get("/api/v1/roles", headers=headers)
+    r = cliente.get("/api/v1/usuarios", headers=headers)
     assert r.status_code == 403
     assert r.json() == {
         "codigo": "SIN_PERMISO",
