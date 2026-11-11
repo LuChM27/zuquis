@@ -380,6 +380,8 @@ La API es REST con JSON y está versionada bajo /api/v1. FastAPI genera la docum
 
 La interfaz toma la identidad de Zuqui's (rosa pastel, dorado, serif elegante, detalles florales) para el marco de la aplicación. Las áreas de trabajo y las cifras van limpias y legibles. Se diseña primero para celular y luego se adapta a escritorio.
 
+**Mockups de referencia:** las pantallas se construyen recreando los [mockups](mockups/README.md) tal como están (estructura, textos, colores, tipografía y componentes), no solo como inspiración. Cubren dashboard, POS (escritorio y celular), cierre de caja, inventario por lotes y encargos; el resto de pantallas sigue el mismo sistema visual. Si un mockup contradice esta especificación, se resuelve la discrepancia antes de implementar.
+
 ### 10.1 Pantallas
 
 | Pantalla | Contenido | Roles con acceso por defecto |

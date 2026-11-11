@@ -31,3 +31,10 @@ uploads/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Desarrollo local
+.archivos-dev/
+dev-dist/
+
+# Playwright
+blob-report/
