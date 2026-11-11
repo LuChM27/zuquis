@@ -13,6 +13,7 @@ from app.modules.archivos.router import router as archivos_router
 from app.modules.auditoria.router import router as auditoria_router
 from app.modules.auth.router import router as auth_router
 from app.modules.configuracion.router import router as configuracion_router
+from app.modules.inventario.router import router as inventario_router
 from app.modules.usuarios.router import router as usuarios_router
 from app.shared.errores import registrar_manejadores
 
@@ -58,6 +59,7 @@ def crear_app(sincronizar_al_iniciar: bool = True) -> FastAPI:
         configuracion_router,
         auditoria_router,
         archivos_router,
+        inventario_router,
     ):
         api.include_router(router)
     app.include_router(api)
