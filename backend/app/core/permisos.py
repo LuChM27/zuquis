@@ -44,6 +44,7 @@ CATALOGO: tuple[DefPermiso, ...] = (
     DefPermiso("proveedores.gestionar", "Crear y editar proveedores"),
     # Inventario y producción
     DefPermiso("produccion.crear", "Registrar producción"),
+    DefPermiso("produccion.anular", "Anular producciones"),
     DefPermiso("inventario.ver", "Consultar stock, lotes y kardex"),
     DefPermiso("inventario.merma", "Registrar mermas"),
     DefPermiso("inventario.ajustar", "Hacer ajustes por conteo físico"),
