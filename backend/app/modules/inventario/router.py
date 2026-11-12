@@ -5,16 +5,24 @@ from sqlalchemy.orm import Session
 
 from app.core.db import obtener_db
 from app.core.deps import Contexto, requiere, requiere_alguno
-from app.modules.inventario import service
+from app.core.idempotencia import Idempotencia, idempotencia
+from app.modules.inventario import operaciones, service
 from app.modules.inventario.models import Insumo, Presentacion
 from app.modules.inventario.schemas import (
+    AjusteCrear,
+    AjusteSalida,
     InsumoCrear,
     InsumoEditar,
     InsumoSalida,
+    MermaCrear,
+    MermaSalida,
+    MotivoMerma,
     PresentacionCrear,
     PresentacionEditar,
     PresentacionSalida,
+    TipoItem,
 )
+from app.shared.paginacion import Pagina, ParamsPagina, RangoFechas
 
 router = APIRouter(tags=["Inventario"])
 
@@ -94,3 +102,65 @@ def editar_presentacion(
     p: Presentacion = service.editar_presentacion(db, ctx, insumo_id, presentacion_id, datos)
     db.commit()
     return PresentacionSalida.model_validate(p, from_attributes=True)
+
+
+# --- Mermas y ajustes (#22) -----------------------------------------------------------------
+
+
+@router.get("/mermas", response_model=Pagina[MermaSalida])
+def listar_mermas(
+    params: ParamsPagina = Depends(),
+    rango: RangoFechas = Depends(),
+    tipo_item: TipoItem | None = Query(None),
+    item_id: uuid.UUID | None = Query(None),
+    motivo: MotivoMerma | None = Query(None),
+    ctx: Contexto = Depends(requiere_alguno("inventario.merma", "inventario.ver")),
+    db: Session = Depends(obtener_db),
+):
+    items, total = operaciones.listar_mermas(db, ctx, params, rango, tipo_item, item_id, motivo)
+    return Pagina(items=items, total=total, page=params.page, size=params.size)
+
+
+@router.post("/mermas", response_model=MermaSalida, status_code=201)
+def registrar_merma(
+    datos: MermaCrear,
+    ctx: Contexto = Depends(requiere("inventario.merma")),
+    idem: Idempotencia = Depends(idempotencia()),
+    db: Session = Depends(obtener_db),
+):
+    if (previa := idem.iniciar(db, ctx)) is not None:
+        return previa
+    merma = operaciones.registrar_merma(db, ctx, datos)
+    nombre = operaciones.nombre_item(db, ctx, merma.tipo_item, merma.item_id)
+    salida = operaciones.merma_salida(merma, nombre).model_dump(mode="json")
+    idem.guardar(db, 201, salida)
+    db.commit()
+    return salida
+
+
+@router.get("/ajustes", response_model=Pagina[AjusteSalida])
+def listar_ajustes(
+    params: ParamsPagina = Depends(),
+    rango: RangoFechas = Depends(),
+    item_id: uuid.UUID | None = Query(None),
+    ctx: Contexto = Depends(requiere_alguno("inventario.ajustar", "inventario.ver")),
+    db: Session = Depends(obtener_db),
+):
+    items, total = operaciones.listar_ajustes(db, ctx, params, rango, item_id)
+    return Pagina(items=items, total=total, page=params.page, size=params.size)
+
+
+@router.post("/ajustes", response_model=AjusteSalida, status_code=201)
+def registrar_ajuste(
+    datos: AjusteCrear,
+    ctx: Contexto = Depends(requiere("inventario.ajustar")),
+    idem: Idempotencia = Depends(idempotencia()),
+    db: Session = Depends(obtener_db),
+):
+    if (previa := idem.iniciar(db, ctx)) is not None:
+        return previa
+    ajuste = operaciones.registrar_ajuste(db, ctx, datos)
+    salida = operaciones.ajuste_salida(ajuste).model_dump(mode="json")
+    idem.guardar(db, 201, salida)
+    db.commit()
+    return salida
