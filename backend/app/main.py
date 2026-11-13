@@ -12,6 +12,7 @@ from app.core.db import SesionLocal, obtener_db
 from app.modules.archivos.router import router as archivos_router
 from app.modules.auditoria.router import router as auditoria_router
 from app.modules.auth.router import router as auth_router
+from app.modules.caja.router import router as caja_router
 from app.modules.carta.router import router as carta_router
 from app.modules.compras.router import router as compras_router
 from app.modules.configuracion.router import router as configuracion_router
@@ -66,6 +67,7 @@ def crear_app(sincronizar_al_iniciar: bool = True) -> FastAPI:
         carta_router,
         compras_router,
         produccion_router,
+        caja_router,
     ):
         api.include_router(router)
     app.include_router(api)
