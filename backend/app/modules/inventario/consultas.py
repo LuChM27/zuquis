@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import Contexto
 from app.modules.auth.models import Usuario
-from app.modules.carta.models import Producto, Receta, RecetaItem
+from app.modules.carta.models import Modificador, Producto, Receta, RecetaItem
 from app.modules.compras.models import Compra, CompraItem, Proveedor
 from app.modules.configuracion import service as configuracion
 from app.modules.inventario.models import (
@@ -32,6 +32,7 @@ from app.modules.inventario.schemas import (
     Kpis,
     LoteSalida,
     MovimientoSalida,
+    RecetaUso,
     StockItem,
 )
 from app.shared.dinero import costo_linea
@@ -194,6 +195,25 @@ def lotes(db: Session, ctx: Contexto, tipo_item: str, item_id: uuid.UUID) -> lis
             )
         )
     return salidas
+
+
+def recetas_que_usan(db: Session, ctx: Contexto, insumo_id: uuid.UUID) -> list[RecetaUso]:
+    """Recetas vigentes de productos y adiciones que llevan el insumo, por nombre."""
+    nombre_item(db, ctx, "insumo", insumo_id)  # 404 si no existe en la sede
+    filas = db.execute(
+        select(
+            Receta.id,
+            func.coalesce(Producto.nombre, Modificador.nombre),
+            Receta.modificador_id.is_not(None),
+            RecetaItem.cantidad,
+        )
+        .join(RecetaItem, RecetaItem.receta_id == Receta.id)
+        .outerjoin(Producto, Producto.id == Receta.producto_id)
+        .outerjoin(Modificador, Modificador.id == Receta.modificador_id)
+        .where(Receta.sede_id == ctx.sede_id, Receta.vigente, RecetaItem.insumo_id == insumo_id)
+    ).all()
+    usos = [RecetaUso(receta_id=r, nombre=n, es_adicion=a, cantidad=c) for r, n, a, c in filas]
+    return sorted(usos, key=lambda u: u.nombre.lower())
 
 
 # --- Kardex y movimientos -------------------------------------------------------------------
@@ -410,6 +430,7 @@ def resumen(db: Session, ctx: Contexto) -> Kpis:
     stocks = [item.stock(dia) for item in items]
     return Kpis(
         valor_inventario=sum(s.valor for s in stocks),
+        dias_alerta_vencimiento=configuracion.valor(db, ctx.sede_id, "dias_alerta_vencimiento"),
         bajo_minimo=[
             item.nombre
             for item, s in zip(items, stocks, strict=True)

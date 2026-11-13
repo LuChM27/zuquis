@@ -25,6 +25,7 @@ from app.modules.inventario.schemas import (
     PresentacionCrear,
     PresentacionEditar,
     PresentacionSalida,
+    RecetaUso,
     StockItem,
     TipoItem,
 )
@@ -222,6 +223,16 @@ def lotes_insumo(
 ):
     """Lotes con existencia en orden PEPS: el primero vigente es el que se usa primero."""
     return consultas.lotes(db, ctx, "insumo", insumo_id)
+
+
+@router.get("/insumos/{insumo_id}/recetas", response_model=list[RecetaUso])
+def recetas_insumo(
+    insumo_id: uuid.UUID,
+    ctx: Contexto = Depends(lector_inventario),
+    db: Session = Depends(obtener_db),
+):
+    """Recetas vigentes que usan el insumo ("Se usa en 9 recetas")."""
+    return consultas.recetas_que_usan(db, ctx, insumo_id)
 
 
 @router.get("/productos/{producto_id}/lotes", response_model=list[LoteSalida])

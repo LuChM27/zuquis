@@ -120,10 +120,20 @@ class StockItem(BaseModel):
 
 class Kpis(BaseModel):
     valor_inventario: int
+    dias_alerta_vencimiento: int
     bajo_minimo: list[str]
     lotes_por_vencer: int
     por_vencer: list[str]
     mermas_mes: int
+
+
+class RecetaUso(BaseModel):
+    """Receta vigente que usa un insumo (de un producto o de una adición)."""
+
+    receta_id: uuid.UUID
+    nombre: str
+    es_adicion: bool
+    cantidad: Cantidad
 
 
 class Alerta(BaseModel):

@@ -379,3 +379,27 @@ def test_la_tarea_nocturna_corre_a_la_hora_local_siguiente():
     despues = datetime(2026, 11, 13, 2, 0, tzinfo=bogota)
     assert proxima_ejecucion(antes, time(2, 0)) == datetime(2026, 11, 13, 2, 0, tzinfo=bogota)
     assert proxima_ejecucion(despues, time(2, 0)) == datetime(2026, 11, 14, 2, 0, tzinfo=bogota)
+
+
+def test_recetas_vigentes_que_usan_un_insumo(cliente, admin):
+    canela = insumo(cliente, admin, "Canela usos")
+    salado = categoria(cliente, admin)
+    for nombre in ("Rollo de canela usos", "Arroz con leche usos"):
+        producto = cliente.post(
+            f"{API}/productos",
+            headers=admin,
+            json={"categoria_id": salado, "nombre": nombre, "tipo": "lote", "precio": 1000},
+        ).json()
+        cliente.put(
+            f"{API}/productos/{producto['id']}/receta",
+            headers=admin,
+            json={"rendimiento": "1", "items": [{"insumo_id": canela["id"], "cantidad": "5"}]},
+        )
+    r = cliente.get(f"{API}/insumos/{canela['id']}/recetas", headers=admin)
+    assert r.status_code == 200, r.text
+    assert [x["nombre"] for x in r.json()] == ["Arroz con leche usos", "Rollo de canela usos"]
+
+
+def test_resumen_trae_los_dias_de_alerta(cliente, admin):
+    r = cliente.get(f"{API}/inventario/resumen", headers=admin)
+    assert r.json()["dias_alerta_vencimiento"] == 3
