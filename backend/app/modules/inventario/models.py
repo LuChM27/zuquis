@@ -170,6 +170,9 @@ class AjusteInventario(Base, Operativo):
     cantidad_sistema: Mapped[Decimal] = mapped_column(NumericCantidad())
     cantidad_contada: Mapped[Decimal] = mapped_column(NumericCantidad())
     diferencia: Mapped[Decimal] = mapped_column(NumericCantidad())
+    # Lo vencido sin dar de baja no entra al conteo; se guarda para mostrarlo y darlo de
+    # baja como merma.
+    cantidad_vencida: Mapped[Decimal] = mapped_column(NumericCantidad(), server_default="0")
     costo_total: Mapped[int] = mapped_column(MontoPesos())
     motivo: Mapped[str] = mapped_column(String(200))
     aprobado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))

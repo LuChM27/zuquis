@@ -34,7 +34,7 @@ def nombre_item(db: Session, ctx: Contexto, tipo_item: str, item_id: uuid.UUID) 
     return obtener_producto(db, ctx, item_id).nombre
 
 
-def _nombres(db: Session, filas) -> dict[uuid.UUID, str]:
+def nombres_items(db: Session, filas) -> dict[uuid.UUID, str]:
     ids_insumos = {f.item_id for f in filas if f.tipo_item == "insumo"}
     ids_productos = {f.item_id for f in filas if f.tipo_item == "producto"}
     nombres: dict[uuid.UUID, str] = {}
@@ -159,7 +159,7 @@ def listar_mermas(
     if rango.hasta:
         consulta = consulta.where(Merma.fecha < rango.hasta + timedelta(days=1))
     filas, total = paginar(db, consulta, params)
-    nombres = _nombres(db, filas)
+    nombres = nombres_items(db, filas)
     return [merma_salida(m, nombres.get(m.item_id)) for m in filas], total
 
 
@@ -179,8 +179,12 @@ def registrar_ajuste(db: Session, ctx: Contexto, datos: AjusteCrear) -> AjusteIn
         )
         .with_for_update()
     ).all()
-    # Lo contado en la estantería incluye lo vencido que aún no se ha dado de baja.
-    sistema = motor.stock(db, ctx.sede_id, datos.tipo_item, datos.item_id, incluir_vencidos=True)
+    # Se cuenta solo lo vigente. Lo vencido se informa aparte para darlo de baja como merma.
+    sistema = motor.stock(db, ctx.sede_id, datos.tipo_item, datos.item_id, incluir_vencidos=False)
+    vencida = (
+        motor.stock(db, ctx.sede_id, datos.tipo_item, datos.item_id, incluir_vencidos=True)
+        - sistema
+    )
     diferencia = datos.cantidad_contada - sistema
     if diferencia == 0:
         raise ErrorNegocio(
@@ -197,6 +201,7 @@ def registrar_ajuste(db: Session, ctx: Contexto, datos: AjusteCrear) -> AjusteIn
         cantidad_sistema=sistema,
         cantidad_contada=datos.cantidad_contada,
         diferencia=diferencia,
+        cantidad_vencida=vencida,
         costo_total=0,
         motivo=datos.motivo,
         aprobado_por=ctx.usuario_id,
@@ -215,7 +220,6 @@ def registrar_ajuste(db: Session, ctx: Contexto, datos: AjusteCrear) -> AjusteIn
             tipo_mov="ajuste",
             referencia_tipo="ajuste",
             referencia_id=ajuste.id,
-            incluir_vencidos=True,
         )
         ajuste.costo_total = -resultado.costo_total
     else:
@@ -241,6 +245,7 @@ def registrar_ajuste(db: Session, ctx: Contexto, datos: AjusteCrear) -> AjusteIn
             "item": nombre,
             "cantidad": str(datos.cantidad_contada),
             "diferencia": str(diferencia),
+            "cantidad_vencida": str(vencida),
             "costo_total": ajuste.costo_total,
             "motivo": datos.motivo,
         },

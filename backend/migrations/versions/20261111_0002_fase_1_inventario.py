@@ -26,6 +26,12 @@ def upgrade() -> None:
         sa.Column("cantidad_sistema", sa.Numeric(precision=18, scale=4), nullable=False),
         sa.Column("cantidad_contada", sa.Numeric(precision=18, scale=4), nullable=False),
         sa.Column("diferencia", sa.Numeric(precision=18, scale=4), nullable=False),
+        sa.Column(
+            "cantidad_vencida",
+            sa.Numeric(precision=18, scale=4),
+            server_default="0",
+            nullable=False,
+        ),
         sa.Column("costo_total", sa.BigInteger(), nullable=False),
         sa.Column("motivo", sa.String(length=200), nullable=False),
         sa.Column("aprobado_por", sa.Uuid(), nullable=True),

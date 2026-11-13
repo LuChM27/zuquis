@@ -192,14 +192,27 @@ def test_ajuste_sin_diferencia_es_error(cliente, admin, azucar):
     assert (r.status_code, r.json()["codigo"]) == (422, "SIN_DIFERENCIA")
 
 
-def test_ajuste_cuenta_lo_vencido_que_sigue_en_estanteria(cliente, admin, db, ctx):
+def test_ajuste_no_cuenta_lo_vencido_pero_lo_informa(cliente, admin, db, ctx):
     queso = nuevo_insumo(cliente, admin, "Queso ajuste")
-    lote(db, ctx, queso, "300", "10", vence=hoy() - timedelta(days=2))
+    vencido = lote(db, ctx, queso, "300", "10", vence=hoy() - timedelta(days=2))
     lote(db, ctx, queso, "200", "12")
-    r = ajuste(cliente, admin, queso, "450")
-    assert r.json()["cantidad_sistema"] == "500.0000"
-    # Falta lo más antiguo primero: sale del lote vencido.
-    assert r.json()["costo_total"] == -500
+    r = ajuste(cliente, admin, queso, "150")
+    cuerpo = r.json()
+    # Se cuenta solo lo vigente; lo vencido se informa aparte para darlo de baja como merma.
+    assert cuerpo["cantidad_sistema"] == "200.0000"
+    assert cuerpo["cantidad_vencida"] == "300.0000"
+    assert cuerpo["costo_total"] == -600
+    db.refresh(vencido)
+    assert vencido.cantidad_disponible == D("300")
+
+
+def test_ajuste_se_puede_listar_con_lo_vencido(cliente, admin, db, ctx):
+    leche = nuevo_insumo(cliente, admin, "Leche ajuste")
+    lote(db, ctx, leche, "100", "3", vence=hoy() - timedelta(days=1))
+    lote(db, ctx, leche, "400", "3")
+    ajuste(cliente, admin, leche, "390")
+    r = cliente.get(f"{API}/ajustes", headers=admin, params={"item_id": leche["id"]})
+    assert r.json()["items"][0]["cantidad_vencida"] == "100.0000"
 
 
 def test_ajuste_queda_auditado(cliente, admin, azucar, db):

@@ -177,6 +177,9 @@ class AjusteSalida(BaseModel):
     cantidad_sistema: Cantidad
     cantidad_contada: Cantidad
     diferencia: Cantidad
+    cantidad_vencida: Cantidad = Field(
+        description="Vencido sin dar de baja: no entra al conteo, se da de baja como merma"
+    )
     costo_total: int
     motivo: str
     fecha: datetime
