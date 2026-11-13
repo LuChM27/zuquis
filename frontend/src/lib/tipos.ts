@@ -201,3 +201,94 @@ export interface Pagina<T> {
   page: number
   size: number
 }
+
+// --- Carta y recetas (backend/app/modules/carta/schemas.py) ---------------------------------
+
+export interface Categoria {
+  id: string
+  nombre: string
+  orden: number
+  /** Nombre del ícono de lucide en kebab-case ("croissant", "cup-soda"). */
+  icono: string | null
+  activa: boolean
+}
+
+export interface Adicion {
+  id: string
+  nombre: string
+  precio: number
+  activo: boolean
+  tiene_receta: boolean
+}
+
+export type TipoProducto = 'preparado' | 'lote'
+
+export interface Producto {
+  id: string
+  categoria_id: string
+  nombre: string
+  tipo: TipoProducto
+  precio: number
+  foto_url: string | null
+  disponible: boolean
+  activo: boolean
+  stock_minimo: string
+  dias_vida_util: number | null
+  modificadores: Adicion[]
+  tiene_receta: boolean
+  stock: string | null
+}
+
+export interface CambioPrecio {
+  precio_anterior: number | null
+  precio_nuevo: number
+  usuario: string | null
+  fecha: string
+}
+
+export interface Receta {
+  id: string
+  version: number
+  vigente: boolean
+  rendimiento: string
+  creado_en: string
+  items: { insumo_id: string; insumo: string; unidad: string; cantidad: string }[]
+}
+
+export interface CostoReceta {
+  receta_id: string
+  version: number
+  rendimiento: string
+  items: {
+    insumo_id: string
+    insumo: string
+    unidad: string
+    cantidad: string
+    costo_unitario: string | null
+    costo: number | null
+  }[]
+  completo: boolean
+  costo_receta: number
+  costo_unitario: string
+  costo_por_unidad: number
+  precio: number
+  margen: number
+  margen_porcentaje: string | null
+}
+
+export interface Presentacion {
+  id: string
+  nombre: string
+  factor: string
+  activa: boolean
+}
+
+export interface Insumo {
+  id: string
+  nombre: string
+  unidad_base: string
+  stock_minimo: string
+  dias_alerta_vencimiento: number | null
+  activo: boolean
+  presentaciones: Presentacion[]
+}

@@ -3,6 +3,7 @@ import type { RouteObject } from 'react-router'
 import { RequierePermiso } from './auth/RequierePermiso'
 import { AppLayout } from './layout/AppLayout'
 import { SECCIONES } from './layout/navegacion'
+import { Carta } from './pages/carta/Carta'
 import { Configuracion } from './pages/configuracion/Configuracion'
 import { NoEncontrada, SeccionPendiente } from './pages/EnConstruccion'
 import { Ingresar } from './pages/Ingresar'
@@ -13,6 +14,7 @@ import { Inicio } from './pages/Inicio'
 const PANTALLAS: Record<string, ReactNode> = {
   '/configuracion': <Configuracion />,
   '/inventario': <Inventario />,
+  '/carta': <Carta />,
 }
 
 export const rutas: RouteObject[] = [

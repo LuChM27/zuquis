@@ -15,8 +15,11 @@ describe('secciones visibles por permisos', () => {
       ]),
     ).toEqual(['Vender', 'Caja', 'Encargos', 'Gastos', 'Reportes'])
   })
-  it('producción ve inventario y compras', () => {
-    expect(nombres(['inventario.ver', 'compras.crear'])).toEqual(['Inventario', 'Compras'])
+  it('producción ve inventario, carta (por las recetas) y compras', () => {
+    expect(nombres(['inventario.ver', 'compras.crear', 'recetas.editar'])).toEqual(['Inventario', 'Carta', 'Compras'])
+  })
+  it('con solo producción ve Compras, donde se registra la producción', () => {
+    expect(nombres(['produccion.crear'])).toEqual(['Compras'])
   })
   it('sin permisos no ve nada', () => {
     expect(nombres([])).toEqual([])
