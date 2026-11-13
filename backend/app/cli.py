@@ -3,6 +3,7 @@
 python -m app.cli crear-admin --email dueno@zuquis.co --nombre "Nombre"
 python -m app.cli sincronizar-permisos
 python -m app.cli limpiar-idempotencia
+python -m app.cli verificar-inventario
 """
 
 import argparse
@@ -18,6 +19,7 @@ from app.core.seguridad import hashear_clave
 from app.modules.auth.models import Usuario
 from app.modules.auth.service import normalizar_email
 from app.modules.configuracion.models import Sede
+from app.modules.inventario.tareas import verificar_inventario
 from app.modules.usuarios.models import Rol, UsuarioRol
 
 
@@ -50,6 +52,7 @@ def main() -> None:
     admin.add_argument("--clave", help="Solo para scripts; si se omite se pide sin mostrarla")
     sub.add_parser("sincronizar-permisos", help="Sincroniza el catálogo de permisos y roles base")
     sub.add_parser("limpiar-idempotencia", help="Borra claves de idempotencia vencidas")
+    sub.add_parser("verificar-inventario", help="Compara cada lote con sus movimientos (RN-09)")
     args = parser.parse_args()
 
     if args.comando == "crear-admin":
@@ -64,6 +67,15 @@ def main() -> None:
             n = limpiar_vencidas(db)
             db.commit()
         print(f"{n} claves vencidas eliminadas.")
+    elif args.comando == "verificar-inventario":
+        with SesionLocal() as db:
+            verificaciones = verificar_inventario(db)
+            db.commit()
+        con_diferencias = [v for v in verificaciones if v.diferencias]
+        for v in verificaciones:
+            print(f"Sede {v.sede_id}: {v.lotes_revisados} lotes, {len(v.diferencias)} diferencias.")
+        if con_diferencias:
+            sys.exit(1)
 
 
 if __name__ == "__main__":

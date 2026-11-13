@@ -27,6 +27,7 @@ const RESPUESTAS: Record<string, unknown> = {
     tope_descuento_por_rol: { r2: '10.0000' },
     dias_alerta_vencimiento: 3,
     permitir_venta_sin_stock: false,
+    margen_minimo: '30.0000',
     impuestos: { activo: false, tipo: null, tarifa: '0.0000', precios_incluyen_impuesto: true },
   },
 }

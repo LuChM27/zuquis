@@ -112,6 +112,18 @@ interface Opciones extends Omit<RequestInit, 'body'> {
   idempotencia?: string
 }
 
+/** Descarga un archivo protegido (foto, soporte) como Blob; acepta la URL que da POST /archivos. */
+export async function apiBlob(url: string): Promise<Blob> {
+  const ruta = url.startsWith(BASE) ? url.slice(BASE.length) : url
+  let r = await crudo(ruta)
+  if (r.status === 401) {
+    await renovarSesion()
+    r = await crudo(ruta)
+  }
+  if (!r.ok) throw await leerError(r)
+  return r.blob()
+}
+
 export async function api<T>(ruta: string, opciones: Opciones = {}): Promise<T> {
   const { json, idempotencia, ...init } = opciones
   const headers = new Headers(init.headers)

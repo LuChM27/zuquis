@@ -20,7 +20,13 @@ export default defineConfig({
   },
   projects: [
     // Usa el Chrome instalado (los runners de GitHub ya lo traen): no hay que descargar navegadores.
-    { name: 'escritorio', use: { ...devices['Desktop Chrome'], channel: 'chrome' } },
+    { name: 'escritorio', use: { ...devices['Desktop Chrome'], channel: 'chrome' }, grepInvert: /@celular/ },
+    // Las pruebas marcadas con @celular corren a tamaño de teléfono (Pixel 7, 412 px).
+    {
+      name: 'celular',
+      use: { ...devices['Pixel 7'], channel: 'chrome' },
+      grep: /@celular/,
+    },
   ],
   webServer: {
     command: 'npm run build && npx vite preview --port 4173 --strictPort',

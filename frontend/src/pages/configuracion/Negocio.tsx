@@ -43,6 +43,7 @@ function FormNegocio({
   const [telefono, setTelefono] = useState(n.telefono ?? '')
   const [dias, setDias] = useState(String(config.dias_alerta_vencimiento))
   const [sinStock, setSinStock] = useState(config.permitir_venta_sin_stock)
+  const [margen, setMargen] = useState(mostrarPct(config.margen_minimo ?? '30'))
   const [topes, setTopes] = useState<Record<string, string>>(() =>
     Object.fromEntries(roles.map((r) => [r.id, mostrarPct(config.tope_descuento_por_rol[r.id] ?? '0')])),
   )
@@ -60,6 +61,8 @@ function FormNegocio({
     const e: Record<string, string> = {}
     if (nombre.trim().length < 2) e.nombre = 'Escribe el nombre del negocio.'
     if (!/^\d+$/.test(dias) || Number(dias) > 60) e.dias = 'Escribe un número de días entre 0 y 60.'
+    const margenApi = margen.replace(',', '.').trim()
+    if (!/^\d{1,3}(\.\d{1,2})?$/.test(margenApi) || Number(margenApi) > 100) e.margen = 'Escribe un porcentaje entre 0 y 100.'
     // Se parte de los topes guardados para no perder los de roles inactivos, pero sin los de
     // roles que ya no existen (el backend rechazaría toda la configuración).
     const topesApi: Record<string, string> = Object.fromEntries(
@@ -77,6 +80,7 @@ function FormNegocio({
       negocio: { ...n, nombre: nombre.trim(), nit: vacioANulo(nit), direccion: vacioANulo(direccion), telefono: vacioANulo(telefono) },
       dias_alerta_vencimiento: Number(dias),
       permitir_venta_sin_stock: sinStock,
+      margen_minimo: margenApi,
       tope_descuento_por_rol: topesApi,
     })
   }
@@ -112,6 +116,19 @@ function FormNegocio({
               activo={sinStock}
               alCambiar={setSinStock}
             />
+            <div>
+              <Campo
+                etiqueta="Margen mínimo de las recetas (%)"
+                inputMode="decimal"
+                value={margen}
+                onChange={(e) => setMargen(e.target.value.trim())}
+                error={errores.margen}
+                className="max-w-[260px]"
+              />
+              <p className="mt-1.5 text-sm text-cafe-suave">
+                Si el costo teórico deja un margen menor, la receta avisa para revisar el precio.
+              </p>
+            </div>
           </div>
         </Tarjeta>
 

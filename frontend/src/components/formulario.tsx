@@ -153,9 +153,23 @@ export function PanelDetalle({
 }
 
 /** Diseño lista + detalle de los mockups; en celular el detalle queda debajo. */
-export function ListaDetalle({ lista, detalle }: { lista: ReactNode; detalle: ReactNode }) {
+export function ListaDetalle({
+  lista,
+  detalle,
+  angosto,
+}: {
+  lista: ReactNode
+  detalle: ReactNode
+  /** Panel de 320 px (inventario) en vez de 380 px (formularios de configuración). */
+  angosto?: boolean
+}) {
   return (
-    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+    <div
+      className={unir(
+        'grid items-start gap-4',
+        angosto ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : 'lg:grid-cols-[minmax(0,1fr)_380px]',
+      )}
+    >
       {lista}
       <div id="panel-detalle" className="scroll-mt-24">
         {detalle}

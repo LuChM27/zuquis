@@ -10,6 +10,8 @@ from app.core.modelo import Base
 
 # Catálogos globales o tablas técnicas que no pertenecen a una sede.
 SIN_SEDE = {
+    "producto_modificadores",
+    "proveedor_insumos",
     "sedes",
     "usuarios",
     "roles",

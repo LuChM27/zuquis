@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Box,
   Calendar,
   ChartColumn,
@@ -34,7 +35,22 @@ export const SECCIONES: Seccion[] = [
   },
   { ruta: '/encargos', nombre: 'Encargos', icono: Calendar, permisos: ['encargos.crear'], fase: 3 },
   { ruta: '/inventario', nombre: 'Inventario', icono: Box, permisos: ['inventario.ver'], fase: 1 },
-  { ruta: '/compras', nombre: 'Compras', icono: Truck, permisos: ['compras.crear'], fase: 1 },
+  // La carta no está en la barra de los mockups; se agregó aquí (decisión del 13/11/2026).
+  {
+    ruta: '/carta',
+    nombre: 'Carta',
+    icono: BookOpen,
+    permisos: ['carta.editar', 'recetas.editar', 'insumos.gestionar'],
+    fase: 1,
+  },
+  // Compras incluye proveedores, cuentas por pagar y la producción.
+  {
+    ruta: '/compras',
+    nombre: 'Compras',
+    icono: Truck,
+    permisos: ['compras.crear', 'proveedores.gestionar', 'produccion.crear'],
+    fase: 1,
+  },
   {
     ruta: '/gastos',
     nombre: 'Gastos',
