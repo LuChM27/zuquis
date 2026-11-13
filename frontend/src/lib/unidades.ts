@@ -53,6 +53,9 @@ export function vencimientoRelativo(iso: string | null, hoy: string): string {
   return fechaDiaMes(iso, hoy)
 }
 
+/** Fecha aaaa-mm-dd → "13/11/2026", sin pasar por zona horaria. */
+export const fechaIso = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
+
 /** Fecha de hoy en Bogotá como aaaa-mm-dd. */
 export function hoyIso(ahora: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Bogota' }).format(ahora)

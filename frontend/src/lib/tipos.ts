@@ -292,3 +292,94 @@ export interface Insumo {
   activo: boolean
   presentaciones: Presentacion[]
 }
+
+// --- Compras, proveedores y producción ------------------------------------------------------
+
+export interface Proveedor {
+  id: string
+  nombre: string
+  nit_o_cedula: string | null
+  telefono: string | null
+  email: string | null
+  activo: boolean
+  insumos: { id: string; nombre: string }[]
+}
+
+export type EstadoPago = 'contado' | 'por_pagar' | 'pagada'
+
+export interface CompraItem {
+  id: string
+  insumo_id: string
+  insumo: string
+  unidad: string
+  presentacion: string | null
+  cantidad: string
+  cantidad_base: string
+  costo_total: number
+  costo_unitario: string
+  fecha_vencimiento: string | null
+  lote_id: string | null
+}
+
+export interface PagoCompra {
+  id: string
+  fecha: string
+  monto: number
+  metodo_pago_id: string
+  metodo_pago: string | null
+}
+
+export interface Compra {
+  id: string
+  proveedor_id: string | null
+  proveedor: string | null
+  fecha: string
+  numero_factura_proveedor: string | null
+  total: number
+  pagado: number
+  saldo: number
+  estado_pago: EstadoPago
+  soporte_url: string | null
+  anulada: boolean
+  motivo_anulacion: string | null
+  creado_en: string
+  items: CompraItem[]
+  pagos: PagoCompra[]
+}
+
+export interface CuentaPorPagar {
+  proveedor_id: string | null
+  proveedor: string
+  compras: number
+  saldo: number
+  mas_antigua: string
+}
+
+export interface Consumo {
+  insumo_id: string
+  insumo: string
+  unidad: string
+  cantidad: string
+  costo_total: number
+}
+
+export interface VistaPreviaProduccion {
+  producto_id: string
+  producto: string
+  receta_version: number
+  cantidad_producida: string
+  costo_total: number
+  costo_unitario: string
+  fecha_vencimiento: string | null
+  consumos: Consumo[]
+}
+
+export interface Produccion extends VistaPreviaProduccion {
+  id: string
+  receta_id: string
+  lote_resultante_id: string | null
+  responsable: string | null
+  fecha: string
+  anulada: boolean
+  motivo_anulacion: string | null
+}

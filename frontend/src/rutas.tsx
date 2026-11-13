@@ -4,6 +4,7 @@ import { RequierePermiso } from './auth/RequierePermiso'
 import { AppLayout } from './layout/AppLayout'
 import { SECCIONES } from './layout/navegacion'
 import { Carta } from './pages/carta/Carta'
+import { Compras } from './pages/compras/Compras'
 import { Configuracion } from './pages/configuracion/Configuracion'
 import { NoEncontrada, SeccionPendiente } from './pages/EnConstruccion'
 import { Ingresar } from './pages/Ingresar'
@@ -15,6 +16,7 @@ const PANTALLAS: Record<string, ReactNode> = {
   '/configuracion': <Configuracion />,
   '/inventario': <Inventario />,
   '/carta': <Carta />,
+  '/compras': <Compras />,
 }
 
 export const rutas: RouteObject[] = [
