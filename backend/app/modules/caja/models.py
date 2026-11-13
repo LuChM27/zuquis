@@ -76,3 +76,19 @@ class CajaMovimiento(Base, Operativo):
     motivo: Mapped[str | None] = mapped_column(String(200))
     usuario_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
     fecha: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class CajaArqueo(Base, Operativo):
+    """Una fila por método al cerrar: lo esperado, lo contado y la diferencia tal cual (RN-14)."""
+
+    __tablename__ = "caja_arqueos"
+    __table_args__ = (
+        CheckConstraint("diferencia = contado - esperado", name="diferencia"),
+        CheckConstraint("contado >= 0", name="contado_no_negativo"),
+    )
+
+    caja_sesion_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("caja_sesiones.id"), index=True)
+    metodo_pago_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("metodos_pago.id"))
+    esperado: Mapped[int] = mapped_column(MontoPesos())
+    contado: Mapped[int] = mapped_column(MontoPesos())
+    diferencia: Mapped[int] = mapped_column(MontoPesos())

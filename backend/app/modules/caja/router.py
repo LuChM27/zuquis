@@ -1,17 +1,24 @@
+import uuid
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.db import obtener_db
 from app.core.deps import Contexto, requiere, requiere_alguno
 from app.core.idempotencia import Idempotencia, idempotencia
-from app.modules.caja import service
+from app.modules.caja import cierre, service
 from app.modules.caja.schemas import (
     AbrirCaja,
+    CerrarCaja,
     EstadoCaja,
     MovimientoManual,
     MovimientoSalida,
+    SesionDetalle,
+    SesionResumen,
     SesionSalida,
+    VistaCierre,
 )
+from app.shared.paginacion import Pagina, ParamsPagina
 
 router = APIRouter(tags=["Caja"])
 
@@ -55,3 +62,43 @@ def registrar_movimiento(
     idem.guardar(db, 201, salida)
     db.commit()
     return salida
+
+
+# --- Cierre e historial (#32) ---------------------------------------------------------------
+
+cerrador = requiere("caja.cerrar")
+lector_historial = requiere_alguno("caja.cerrar", "reportes.ver", "reportes.ver_caja_propia")
+
+
+@router.get("/caja/actual/cierre", response_model=VistaCierre)
+def vista_cierre(ctx: Contexto = Depends(cerrador), db: Session = Depends(obtener_db)):
+    """Lo esperado por método, de dónde sale el efectivo y el resumen del turno."""
+    return cierre.vista_previa(db, ctx)
+
+
+@router.post("/caja/cerrar", response_model=SesionDetalle)
+def cerrar_caja(
+    datos: CerrarCaja, ctx: Contexto = Depends(cerrador), db: Session = Depends(obtener_db)
+):
+    sesion = cierre.cerrar(db, ctx, datos)
+    db.commit()
+    return cierre.detalle(db, ctx, sesion.id)
+
+
+@router.get("/caja/sesiones", response_model=Pagina[SesionResumen])
+def historial(
+    params: ParamsPagina = Depends(),
+    ctx: Contexto = Depends(lector_historial),
+    db: Session = Depends(obtener_db),
+):
+    items, total = cierre.listar(db, ctx, params)
+    return Pagina(items=items, total=total, page=params.page, size=params.size)
+
+
+@router.get("/caja/sesiones/{sesion_id}", response_model=SesionDetalle)
+def ver_sesion(
+    sesion_id: uuid.UUID,
+    ctx: Contexto = Depends(lector_historial),
+    db: Session = Depends(obtener_db),
+):
+    return cierre.detalle(db, ctx, sesion_id)

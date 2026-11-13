@@ -4,7 +4,7 @@ from app.core.idempotencia_models import Idempotencia
 from app.core.modelo import Base
 from app.modules.auditoria.models import Auditoria
 from app.modules.auth.models import SesionRefresh, Usuario
-from app.modules.caja.models import CajaMovimiento, CajaSesion
+from app.modules.caja.models import CajaArqueo, CajaMovimiento, CajaSesion
 from app.modules.carta.models import (
     Categoria,
     Modificador,
@@ -40,6 +40,7 @@ __all__ = [
     "AjusteInventario",
     "Auditoria",
     "Base",
+    "CajaArqueo",
     "CajaMovimiento",
     "CajaSesion",
     "Categoria",
