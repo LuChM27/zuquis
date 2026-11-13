@@ -42,6 +42,11 @@ CLAVES: dict[str, tuple[TypeAdapter, Any]] = {
     "impuestos": (TypeAdapter(Impuestos), Impuestos()),
     # Margen sobre el precio por debajo del cual el costeo de recetas avisa (RF-07), en %.
     "margen_minimo": (TypeAdapter(Porcentaje), Decimal(30)),
+    # Papel del comprobante: carta, media carta o rollo térmico de 80/58 mm (#33).
+    "formato_comprobante": (
+        TypeAdapter(Literal["carta", "media_carta", "80mm", "58mm"]),
+        "media_carta",
+    ),
 }
 
 

@@ -236,3 +236,52 @@ def detalle(db: Session, ctx: Contexto, sesion_id: uuid.UUID) -> SesionDetalle:
         efectivo=_efectivo(db, sesion),
         resumen=_resumen(db, sesion),
     )
+
+
+def html_resumen(db: Session, ctx: Contexto, d: SesionDetalle) -> str:
+    """RF-20: resumen reimprimible de un cierre (arqueo, efectivo y turno)."""
+    from app.modules.configuracion import service as configuracion
+    from app.shared.pdf import e, fecha_hora, logo_data_uri, pagina, pesos
+
+    negocio = configuracion.valor(db, ctx.sede_id, "negocio")
+    arqueo = "".join(
+        f"<tr><td>{e(a.metodo)}</td><td class='n'>{pesos(a.esperado)}</td>"
+        f"<td class='n'>{'—' if a.contado is None else pesos(a.contado)}</td>"
+        f"<td class='n {'peligro' if a.diferencia else ''}'>"
+        f"{'—' if a.diferencia is None else pesos(a.diferencia)}</td></tr>"
+        for a in d.arqueos
+    )
+    efectivo = "".join(
+        f"<tr><td>{e(x.concepto)}</td><td class='n'>{pesos(x.monto)}</td></tr>" for x in d.efectivo
+    )
+    r = d.resumen
+    turno = "".join(
+        f"<tr><td>{t}</td><td class='n'>{pesos(m)}</td></tr>"
+        for t, m in (
+            ("Ventas del turno", r.ventas),
+            ("Abonos recibidos", r.abonos),
+            ("Propinas (dinero de terceros)", r.propinas),
+            ("Gastos pagados de la caja", r.gastos),
+            ("Domicilios entregados al domiciliario", r.domicilios_entregados),
+            ("Pagos a proveedores", r.pagos_proveedores),
+            ("Anulaciones", r.anulaciones),
+        )
+    )
+    cierre = f"Cerrada {fecha_hora(d.cerrada_en)}" if d.cerrada_en else "Caja abierta"
+    obs = f"<p><b>Observación:</b> {e(d.observacion)}</p>" if d.observacion else ""
+    cuerpo = f"""
+<div class="centro"><img class="logo" src="{logo_data_uri()}" alt="">
+<h1>{e(negocio.nombre)}</h1></div>
+<p class="fuerte grande">Resumen de caja</p>
+<p class="suave">Abierta {fecha_hora(d.abierta_en)} por {e(d.responsable)}
+· base {pesos(d.base_inicial)}<br>
+{cierre}</p>
+<div class="linea"></div>
+<table><tr class="suave"><td>Método</td><td class="n">Debería haber</td><td class="n">Contado</td>
+<td class="n">Diferencia</td></tr>{arqueo}</table>{obs}
+<div class="linea"></div><p class="fuerte">De dónde sale el efectivo</p><table>{efectivo}
+<tr><td class="fuerte">Debería haber en efectivo</td>
+<td class="n fuerte">{pesos(d.efectivo_esperado)}</td></tr></table>
+<div class="linea"></div><p class="fuerte">Resumen del turno</p><table>{turno}</table>
+"""
+    return pagina("carta", cuerpo)

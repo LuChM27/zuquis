@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app.core.db import obtener_db
@@ -19,6 +19,7 @@ from app.modules.caja.schemas import (
     VistaCierre,
 )
 from app.shared.paginacion import Pagina, ParamsPagina
+from app.shared.pdf import html_a_pdf
 
 router = APIRouter(tags=["Caja"])
 
@@ -102,3 +103,14 @@ def ver_sesion(
     db: Session = Depends(obtener_db),
 ):
     return cierre.detalle(db, ctx, sesion_id)
+
+
+@router.get("/caja/sesiones/{sesion_id}/resumen", response_class=Response)
+def resumen_pdf(
+    sesion_id: uuid.UUID,
+    ctx: Contexto = Depends(lector_historial),
+    db: Session = Depends(obtener_db),
+):
+    """Resumen del cierre en PDF para reimprimir (RF-20)."""
+    detalle = cierre.detalle(db, ctx, sesion_id)
+    return Response(html_a_pdf(cierre.html_resumen(db, ctx, detalle)), media_type="application/pdf")

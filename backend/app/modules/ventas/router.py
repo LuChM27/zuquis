@@ -1,16 +1,18 @@
 import uuid
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.orm import Session
 
 from app.core.db import obtener_db
 from app.core.deps import Contexto, requiere, requiere_alguno
 from app.core.idempotencia import Idempotencia, idempotencia
-from app.modules.ventas import service
+from app.modules.configuracion import service as configuracion
+from app.modules.ventas import comprobante, service
 from app.modules.ventas.descuentos import AutorizacionInvalida, contar_intento_fallido
 from app.modules.ventas.schemas import AnulacionEntrada, VentaCrear, VentaSalida
 from app.shared.paginacion import Pagina, ParamsPagina, RangoFechas
+from app.shared.pdf import html_a_pdf
 
 router = APIRouter(tags=["Ventas"])
 
@@ -79,3 +81,24 @@ def anular_venta(
     idem.guardar(db, 200, salida)
     db.commit()
     return salida
+
+
+Formato = Literal["carta", "media_carta", "80mm", "58mm"]
+
+
+@router.get("/ventas/{venta_id}/comprobante", response_class=Response)
+def comprobante_pdf(
+    venta_id: uuid.UUID,
+    formato: Formato | None = Query(None, description="Por defecto, el de la configuración"),
+    ctx: Contexto = Depends(lector_ventas),
+    db: Session = Depends(obtener_db),
+):
+    """Comprobante interno en PDF (no es factura electrónica)."""
+    venta = service.salida(db, service.obtener(db, ctx, venta_id))
+    formato = formato or configuracion.valor(db, ctx.sede_id, "formato_comprobante")
+    pdf = html_a_pdf(comprobante.html(db, ctx, venta, formato))
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="comprobante-{venta.numero:04d}.pdf"'},
+    )
