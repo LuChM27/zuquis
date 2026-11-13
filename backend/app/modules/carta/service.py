@@ -33,6 +33,7 @@ from app.modules.carta.schemas import (
     RecetaItemSalida,
     RecetaSalida,
 )
+from app.modules.configuracion import service as configuracion
 from app.modules.inventario import motor
 from app.modules.inventario.models import Insumo
 from app.modules.inventario.service import tiene_movimientos
@@ -442,7 +443,10 @@ def costo_teorico(db: Session, ctx: Contexto, receta: Receta, precio: int) -> Co
         if precio > 0
         else None
     )
+    margen_minimo = configuracion.valor(db, ctx.sede_id, "margen_minimo")
     return CostoSalida(
+        margen_minimo=margen_minimo,
+        margen_bajo=margen_pct is not None and margen_pct < margen_minimo,
         receta_id=receta.id,
         version=receta.version,
         rendimiento=receta.rendimiento,

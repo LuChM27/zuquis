@@ -19,7 +19,7 @@ interface Props {
 /** Tabla de stock en escritorio; en celular, lista de tarjetas que abren el detalle. */
 export function ListaStock({ items, titulo, seleccionado, alElegir, hoy, celular }: Props) {
   if (items.length === 0) {
-    return <Vacio>Todavía no hay {titulo.toLowerCase()} activos. Se crean desde Compras o la carta.</Vacio>
+    return <Vacio>No hay {titulo.toLowerCase()} que mostrar. Revisa la búsqueda o créalos desde la Carta.</Vacio>
   }
   if (celular) {
     return (

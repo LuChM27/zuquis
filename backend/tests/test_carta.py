@@ -153,6 +153,12 @@ def test_costo_teorico_al_peso_contra_calculo_manual(cliente, admin, categoria, 
     assert costo["costo_por_unidad"] == 698
     assert (costo["margen"], costo["margen_porcentaje"]) == (3802, "84.4889")
     assert costo["completo"] is True
+    # Margen mínimo configurable (30 % por defecto): 84,49 % está bien; con 90 % queda bajo.
+    assert (costo["margen_minimo"], costo["margen_bajo"]) == ("30.0000", False)
+    r = cliente.patch(f"{API}/configuracion", headers=admin, json={"margen_minimo": "90"})
+    assert r.status_code == 200, r.text
+    costo = cliente.get(f"{API}/productos/{p['id']}/costo", headers=admin).json()
+    assert (costo["margen_minimo"], costo["margen_bajo"]) == ("90.0000", True)
 
 
 def test_costo_marca_incompleto_si_un_insumo_nunca_se_compro(cliente, admin, categoria):

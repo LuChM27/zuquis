@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
 
 const ADMIN = {
   email: process.env.E2E_ADMIN_EMAIL ?? 'admin@zuquis.local',
@@ -6,6 +6,12 @@ const ADMIN = {
 }
 const PRODUCCION = { email: 'produccion.e2e@zuquis.local', clave: 'produccion-e2e-123' }
 const API = process.env.E2E_API_URL ?? 'http://localhost:8000/api/v1'
+
+/** Elige en un Buscador: escribe parte del nombre y hace clic en la opción. */
+async function elegir(zona: Page | Locator, etiqueta: string, texto: string) {
+  await zona.getByRole('combobox', { name: etiqueta }).fill(texto.slice(0, 12))
+  await zona.getByRole('option', { name: texto }).click()
+}
 
 async function autenticar(request: APIRequestContext) {
   const login = await request.post(`${API}/auth/login`, { data: { email: ADMIN.email, password: ADMIN.clave } })
@@ -48,7 +54,7 @@ test('carta: crear un producto con su receta y ver el costo teórico', async ({ 
   await expect(detalle).toBeVisible()
   await detalle.getByRole('tab', { name: 'Receta' }).click()
   await detalle.getByLabel('Rinde (unidades)').fill('10')
-  await detalle.getByLabel('Insumo', { exact: true }).selectOption({ label: insumo.nombre })
+  await elegir(detalle, 'Insumo', insumo.nombre)
   await detalle.getByLabel('Cantidad en g').fill('1500')
   await detalle.getByRole('button', { name: 'Guardar receta' }).click()
   await expect(page.getByText('Receta guardada: versión 1.')).toBeVisible()

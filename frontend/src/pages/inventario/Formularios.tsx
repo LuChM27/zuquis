@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
+import { Buscador } from '../../components/Buscador'
 import { Aviso, AreaTexto, Selector } from '../../components/formulario'
 import { Boton, Campo } from '../../components/ui'
 import { useAvisos } from '../../components/usarAvisos'
@@ -92,25 +93,17 @@ export function FormMerma({
 
   return (
     <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
-      <Selector
+      <Buscador
         etiqueta="Insumo o producto"
-        value={itemId}
-        onChange={(e) => {
-          setItemId(e.target.value)
+        placeholder="Busca un insumo o producto"
+        opciones={items.map((i) => ({ valor: i.item_id, texto: i.nombre, detalle: i.tipo_item === 'producto' ? 'producto' : i.unidad }))}
+        valor={itemId}
+        alCambiar={(v) => {
+          setItemId(v)
           setLoteId('')
         }}
-        aria-invalid={errores.item ? true : undefined}
-      >
-        <option value="" disabled>
-          Elige uno
-        </option>
-        {items.map((i) => (
-          <option key={i.item_id} value={i.item_id}>
-            {i.nombre}
-          </option>
-        ))}
-      </Selector>
-      {errores.item && <p className="-mt-2.5 text-sm text-peligro-texto">{errores.item}</p>}
+        error={errores.item}
+      />
       {item && (
         <Selector etiqueta="De qué lote" value={loteId} onChange={(e) => setLoteId(e.target.value)}>
           <option value="">El más antiguo primero (PEPS)</option>

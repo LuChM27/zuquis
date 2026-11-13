@@ -1,9 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { FiltroLista } from '../../components/Buscador'
 import { Aviso, Celda, FilaTabla, Interruptor, ListaDetalle, PanelDetalle, Selector, Tabla, Vacio } from '../../components/formulario'
 import { Boton, Campo, Chip } from '../../components/ui'
 import { api } from '../../lib/api'
+import { coincide } from '../../lib/buscar'
 import { dec } from '../../lib/decimal'
 import type { Insumo, Presentacion } from '../../lib/tipos'
 import { cantidadLegible } from '../../lib/unidades'
@@ -19,16 +21,19 @@ export function Insumos() {
     queryFn: () => api<Insumo[]>('/insumos?incluir_inactivos=true'),
   })
   const { sel, version, elegir, fijar } = useSeleccion()
-  const lista = insumos.data ?? []
+  const [busqueda, setBusqueda] = useState('')
+  const todos = insumos.data ?? []
+  const lista = todos.filter((i) => coincide(i.nombre, busqueda))
   const actual = sel === 'nuevo' ? null : (lista.find((i) => i.id === sel) ?? lista[0] ?? null)
-  const modo = sel === 'nuevo' || (!actual && insumos.isSuccess) ? 'nuevo' : actual
+  const modo = sel === 'nuevo' || (!actual && insumos.isSuccess && todos.length === 0) ? 'nuevo' : actual
 
   return (
     <ListaDetalle
       lista={
         <TarjetaLista titulo="Insumos" nuevo="Nuevo insumo" alNuevo={() => elegir('nuevo')}>
+          {todos.length > 0 && <FiltroLista etiqueta="Buscar insumo" valor={busqueda} alCambiar={setBusqueda} className="mb-4 max-w-sm" />}
           {insumos.isError && <Aviso>No pudimos cargar los insumos. Recarga la página para intentarlo de nuevo.</Aviso>}
-          {insumos.isSuccess && lista.length === 0 && <Vacio>Todavía no hay insumos.</Vacio>}
+          {insumos.isSuccess && lista.length === 0 && <Vacio>{todos.length ? 'Ningún insumo coincide.' : 'Todavía no hay insumos.'}</Vacio>}
           {lista.length > 0 && (
             <Tabla columnas={[{ texto: 'Insumo' }, { texto: 'Se compra en', ocultarMovil: true }, { texto: 'Mínimo', derecha: true }, { texto: 'Estado' }]}>
               {lista.map((i) => (
@@ -48,8 +53,7 @@ export function Insumos() {
       detalle={
         modo ? (
           <PanelDetalle rotulo={modo === 'nuevo' ? 'Nuevo' : 'Insumo'} titulo={modo === 'nuevo' ? 'Nuevo insumo' : modo.nombre}>
-            <FormInsumo key={version} insumo={modo === 'nuevo' ? null : modo} alGuardar={(i) => fijar(i.id)} />
-            {modo !== 'nuevo' && <Presentaciones key={`p${modo.id}`} insumo={modo} />}
+            <FormInsumo key={`${version}-${modo === 'nuevo' ? 'n' : modo.id}`} insumo={modo === 'nuevo' ? null : modo} alGuardar={(i) => fijar(i.id)} />
           </PanelDetalle>
         ) : null
       }
@@ -107,6 +111,7 @@ function FormInsumo({ insumo, alGuardar }: { insumo: Insumo | null; alGuardar: (
   }
 
   return (
+    <>
     <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
       <Campo etiqueta="Nombre" value={nombre} maxLength={120} onChange={(e) => setNombre(e.target.value)} error={errores.nombre} />
       <Selector etiqueta="Unidad base" value={unidad} onChange={(e) => setUnidad(e.target.value)}>
@@ -132,11 +137,14 @@ function FormInsumo({ insumo, alGuardar }: { insumo: Insumo | null; alGuardar: (
         </Boton>
       </PieFormulario>
     </form>
+    {/* Las presentaciones usan la unidad elegida en el formulario, aunque aún no se guarde. */}
+    {!nuevo && <Presentaciones insumo={insumo} unidad={unidad} />}
+    </>
   )
 }
 
 /** Unidades de compra: "Bulto 50 kg" = 50.000 g. */
-function Presentaciones({ insumo }: { insumo: Insumo }) {
+function Presentaciones({ insumo, unidad }: { insumo: Insumo; unidad: string }) {
   const cliente = useQueryClient()
   const [nombre, setNombre] = useState('')
   const [factor, setFactor] = useState('')
@@ -151,7 +159,7 @@ function Presentaciones({ insumo }: { insumo: Insumo }) {
     ev.preventDefault()
     const f = leerCantidad(factor)
     if (nombre.trim().length < 1 || !f || dec(f).lte(0)) {
-      setError(`Escribe el nombre (por ejemplo "Bulto 50 kg") y cuántos ${insumo.unidad_base} trae.`)
+      setError(`Escribe el nombre (por ejemplo "Bulto 50 kg") y cuántos ${unidad} trae.`)
       return
     }
     setGuardando(true)
@@ -180,13 +188,21 @@ function Presentaciones({ insumo }: { insumo: Insumo }) {
   return (
     <section aria-label="Presentaciones" className="mt-6 border-t border-linea pt-5">
       <h3 className="font-serif text-[24px] leading-tight font-medium">Presentaciones</h3>
-      <p className="mt-1 text-sm text-cafe-suave">Cómo se compra. Al registrar una compra se convierte a {insumo.unidad_base}.</p>
+      <p className="mt-1 text-sm text-cafe-suave">Cómo se compra. Al registrar una compra se convierte a {unidad}.</p>
+      {unidad !== insumo.unidad_base && insumo.presentaciones.length > 0 && (
+        <div className="mt-3">
+          <Aviso tono="aviso">
+            Cambiaste la unidad de {insumo.unidad_base} a {unidad}. Guarda los cambios y revisa que cada presentación diga
+            cuántos {unidad} trae.
+          </Aviso>
+        </div>
+      )}
       <ul className="mt-3 flex flex-col divide-y divide-linea">
         {insumo.presentaciones.map((p) => (
           <li key={p.id} className="flex items-center justify-between gap-3 py-2">
             <span className={p.activa ? '' : 'text-cafe-suave line-through'}>
               <span className="font-semibold">{p.nombre}</span>
-              <span className="block text-sm text-cafe-suave">= {cantidadLegible(p.factor, insumo.unidad_base)}</span>
+              <span className="block text-sm text-cafe-suave">= {cantidadLegible(p.factor, unidad)}</span>
             </span>
             <button type="button" onClick={() => alternar(p)} className="h-10 rounded-control px-3 text-sm font-semibold text-fucsia hover:bg-rosa-suave">
               {p.activa ? 'Desactivar' : 'Activar'}
@@ -196,7 +212,7 @@ function Presentaciones({ insumo }: { insumo: Insumo }) {
       </ul>
       <form onSubmit={agregar} noValidate className="mt-3 grid grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
         <Campo etiqueta="Nueva presentación" placeholder="Bulto 50 kg" value={nombre} maxLength={80} onChange={(e) => setNombre(e.target.value)} />
-        <Campo etiqueta={`Trae (${insumo.unidad_base})`} inputMode="decimal" value={factor} onChange={(e) => setFactor(e.target.value)} />
+        <Campo etiqueta={`Trae (${unidad})`} inputMode="decimal" value={factor} onChange={(e) => setFactor(e.target.value)} />
         {error && (
           <div className="col-span-2">
             <Aviso>{error}</Aviso>

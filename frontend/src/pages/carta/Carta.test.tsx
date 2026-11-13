@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { ContextoSesion, type Sesion } from '../../auth/contexto'
@@ -42,6 +42,8 @@ const COSTO: CostoReceta = {
   precio: 4500,
   margen: 1500,
   margen_porcentaje: '25.0000',
+  margen_minimo: '30.0000',
+  margen_bajo: true,
 }
 const RESPUESTAS: Record<string, unknown> = {
   '/api/v1/categorias': [{ id: 'c1', nombre: 'Salado', orden: 2, icono: 'sandwich', activa: true }],
@@ -50,6 +52,17 @@ const RESPUESTAS: Record<string, unknown> = {
   '/api/v1/insumos': [{ id: 'i1', nombre: 'Harina', unidad_base: 'g', stock_minimo: '0', dias_alerta_vencimiento: null, activo: true, presentaciones: [] }],
   '/api/v1/productos/p1/receta': RECETA,
   '/api/v1/productos/p1/costo': COSTO,
+  '/api/v1/insumos?incluir_inactivos=true': [
+    {
+      id: 'i1',
+      nombre: 'Harina',
+      unidad_base: 'g',
+      stock_minimo: '0',
+      dias_alerta_vencimiento: null,
+      activo: true,
+      presentaciones: [{ id: 'pr1', nombre: 'Bulto 50 kg', factor: '50000.0000', activa: true }],
+    },
+  ],
   '/api/v1/productos/p1/receta/versiones': [RECETA, { ...RECETA, id: 'r0', version: 1, vigente: false }],
 }
 
@@ -124,7 +137,26 @@ describe('Carta', () => {
     expect(within(costo).getByText('Costo de la receta (rinde 12)').nextSibling).toHaveTextContent('$36.000')
     expect(within(costo).getByText('Costo por unidad').nextSibling).toHaveTextContent('$3.000')
     expect(within(costo).getByText('$1.500 · 25 %')).toBeInTheDocument()
-    expect(within(costo).getByText(/por debajo del 30 %/)).toBeInTheDocument()
+    expect(within(costo).getByText(/por debajo del 30 % configurado/)).toBeInTheDocument()
     expect(await screen.findByText(/Versión 1 ·/)).toBeInTheDocument()
+  })
+
+  it('al cambiar la unidad del insumo, las presentaciones hablan de la nueva unidad', async () => {
+    montar(['insumos.gestionar'])
+    expect(await screen.findByText('= 50 kg')).toBeInTheDocument()
+    expect(screen.getByLabelText('Trae (g)')).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Unidad base'), 'ml')
+    expect(screen.getByLabelText('Trae (ml)')).toBeInTheDocument()
+    expect(screen.getByText('= 50 L')).toBeInTheDocument()
+    expect(screen.getByText(/Cambiaste la unidad de g a ml/)).toBeInTheDocument()
+  })
+
+  it('el insumo de la receta se busca escribiendo', async () => {
+    montar(['recetas.editar'])
+    const campo = await screen.findByRole('combobox', { name: 'Insumo' })
+    await waitFor(() => expect(campo).toHaveValue('Harina'))
+    await userEvent.clear(campo)
+    await userEvent.type(campo, 'har')
+    expect(screen.getByRole('option', { name: /Harina/ })).toBeInTheDocument()
   })
 })

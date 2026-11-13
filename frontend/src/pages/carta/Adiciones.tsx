@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useSesion } from '../../auth/contexto'
+import { CasillasConBusqueda } from '../../components/Buscador'
 import { CampoDinero } from '../../components/CampoDinero'
-import { Aviso, Casilla, Celda, FilaTabla, Interruptor, ListaDetalle, PanelDetalle, Pildoras, Tabla, Vacio } from '../../components/formulario'
+import { Aviso, Celda, FilaTabla, Interruptor, ListaDetalle, PanelDetalle, Pildoras, Tabla, Vacio } from '../../components/formulario'
 import { Boton, Campo, Chip } from '../../components/ui'
 import { api } from '../../lib/api'
 import { pesos } from '../../lib/formato'
@@ -175,28 +176,12 @@ function FormAdicion({
       <CampoDinero etiqueta="Precio" valor={precio} alCambiar={setPrecio} error={errores.precio} />
       {!nueva && <Interruptor etiqueta="Activa" activo={activo} alCambiar={setActivo} />}
       {productos.length > 0 && (
-        <fieldset>
-          <legend className="mb-1 text-sm font-semibold">Se ofrece en</legend>
-          <div className="max-h-64 overflow-y-auto rounded-control border border-linea px-3 py-1">
-            {productos
-              .filter((p) => p.activo)
-              .map((p) => (
-                <Casilla
-                  key={p.id}
-                  etiqueta={p.nombre}
-                  marcada={enProductos.has(p.id)}
-                  alCambiar={(v) =>
-                    setEnProductos((s) => {
-                      const n = new Set(s)
-                      if (v) n.add(p.id)
-                      else n.delete(p.id)
-                      return n
-                    })
-                  }
-                />
-              ))}
-          </div>
-        </fieldset>
+        <CasillasConBusqueda
+          etiqueta="Se ofrece en"
+          opciones={productos.filter((p) => p.activo).map((p) => ({ valor: p.id, texto: p.nombre }))}
+          marcadas={[...enProductos]}
+          alCambiar={(m) => setEnProductos(new Set(m))}
+        />
       )}
       {error && <Aviso>{error}</Aviso>}
       {guardado && !error && <p role="status" className="text-sm font-semibold text-exito-texto">Cambios guardados.</p>}

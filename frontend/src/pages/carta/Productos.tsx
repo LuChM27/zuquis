@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { ImagePlus } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
 import { useSesion } from '../../auth/contexto'
+import { CasillasConBusqueda, FiltroLista } from '../../components/Buscador'
 import { CampoDinero } from '../../components/CampoDinero'
-import { Aviso, Casilla, Celda, FilaTabla, Interruptor, ListaDetalle, PanelDetalle, Pildoras, Selector, Tabla, Vacio } from '../../components/formulario'
+import { coincide } from '../../lib/buscar'
+import { Aviso, Celda, FilaTabla, Interruptor, ListaDetalle, PanelDetalle, Pildoras, Selector, Tabla, Vacio } from '../../components/formulario'
 import { Boton, Campo, Chip } from '../../components/ui'
 import { api } from '../../lib/api'
 import { cantidad as textoCantidad, dec } from '../../lib/decimal'
@@ -27,6 +29,7 @@ export function Productos() {
   const { puede } = useSesion()
   const editor = puede('carta.editar')
   const [categoria, setCategoria] = useState('')
+  const [busqueda, setBusqueda] = useState('')
   const categorias = useQuery({ queryKey: ['categorias'], queryFn: () => api<Categoria[]>('/categorias') })
   const productos = useQuery({
     queryKey: ['productos', 'todos'],
@@ -34,15 +37,17 @@ export function Productos() {
   })
   const { sel, version, elegir, fijar } = useSeleccion()
   const nombresCategoria = new Map((categorias.data ?? []).map((c) => [c.id, c]))
-  const lista = (productos.data ?? []).filter((p) => !categoria || p.categoria_id === categoria)
+  const lista = (productos.data ?? []).filter((p) => (!categoria || p.categoria_id === categoria) && coincide(p.nombre, busqueda))
   const actual = sel === 'nuevo' ? null : (lista.find((p) => p.id === sel) ?? lista[0] ?? null)
-  const modo = editor && (sel === 'nuevo' || (!actual && productos.isSuccess)) ? 'nuevo' : actual
+  const modo = editor && (sel === 'nuevo' || (!actual && productos.isSuccess && productos.data.length === 0)) ? 'nuevo' : actual
 
   return (
     <ListaDetalle
       lista={
         <TarjetaLista titulo="Productos" nuevo={editor ? 'Nuevo producto' : undefined} alNuevo={() => elegir('nuevo')}>
-          <Selector etiqueta="Categoría" value={categoria} onChange={(e) => setCategoria(e.target.value)} className="mb-4 max-w-xs">
+          <div className="mb-4 grid items-end gap-3 sm:grid-cols-2">
+          <FiltroLista etiqueta="Buscar producto" valor={busqueda} alCambiar={setBusqueda} />
+          <Selector etiqueta="Categoría" value={categoria} onChange={(e) => setCategoria(e.target.value)}>
             <option value="">Todas</option>
             {categorias.data?.map((c) => (
               <option key={c.id} value={c.id}>
@@ -50,8 +55,9 @@ export function Productos() {
               </option>
             ))}
           </Selector>
+          </div>
           {productos.isError && <Aviso>No pudimos cargar los productos. Recarga la página para intentarlo de nuevo.</Aviso>}
-          {productos.isSuccess && lista.length === 0 && <Vacio>No hay productos en esta categoría.</Vacio>}
+          {productos.isSuccess && lista.length === 0 && <Vacio>No hay productos que coincidan.</Vacio>}
           {lista.length > 0 && (
             <Tabla
               columnas={[
@@ -311,17 +317,12 @@ function FormProducto({
         </div>
       )}
       {(adiciones.data?.length ?? 0) > 0 && (
-        <fieldset>
-          <legend className="mb-1 text-sm font-semibold">Adiciones que se le pueden poner</legend>
-          {adiciones.data!.map((a) => (
-            <Casilla
-              key={a.id}
-              etiqueta={`${a.nombre} · ${pesos(a.precio)}`}
-              marcada={mods.includes(a.id)}
-              alCambiar={(v) => setMods((m) => (v ? [...m, a.id] : m.filter((x) => x !== a.id)))}
-            />
-          ))}
-        </fieldset>
+        <CasillasConBusqueda
+          etiqueta="Adiciones que se le pueden poner"
+          opciones={adiciones.data!.map((a) => ({ valor: a.id, texto: `${a.nombre} · ${pesos(a.precio)}` }))}
+          marcadas={mods}
+          alCambiar={setMods}
+        />
       )}
       {!nuevo && (
         <>

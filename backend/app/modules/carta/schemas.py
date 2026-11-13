@@ -157,3 +157,5 @@ class CostoSalida(BaseModel):
     precio: int
     margen: int
     margen_porcentaje: Cantidad | None = Field(description="Margen sobre el precio, en %")
+    margen_minimo: Cantidad = Field(description="Margen mínimo configurado, en %")
+    margen_bajo: bool = Field(description="True si el margen queda por debajo del mínimo")

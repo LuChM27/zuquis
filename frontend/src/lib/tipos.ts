@@ -63,6 +63,8 @@ export interface Configuracion {
   tope_descuento_por_rol: Record<string, string>
   dias_alerta_vencimiento: number
   permitir_venta_sin_stock: boolean
+  /** Margen mínimo de las recetas en % ("30.0000"): por debajo, el costeo avisa. */
+  margen_minimo: string
   impuestos: { activo: boolean; tipo: string | null; tarifa: string; precios_incluyen_impuesto: boolean }
 }
 
@@ -274,6 +276,8 @@ export interface CostoReceta {
   precio: number
   margen: number
   margen_porcentaje: string | null
+  margen_minimo: string
+  margen_bajo: boolean
 }
 
 export interface Presentacion {

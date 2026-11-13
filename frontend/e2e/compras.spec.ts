@@ -1,10 +1,16 @@
-import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Locator, type Page } from '@playwright/test'
 
 const ADMIN = {
   email: process.env.E2E_ADMIN_EMAIL ?? 'admin@zuquis.local',
   clave: process.env.E2E_ADMIN_CLAVE ?? 'zuquis-dev-123',
 }
 const API = process.env.E2E_API_URL ?? 'http://localhost:8000/api/v1'
+
+/** Elige en un Buscador: escribe parte del nombre y hace clic en la opción. */
+async function elegir(zona: Page | Locator, etiqueta: string, texto: string) {
+  await zona.getByRole('combobox', { name: etiqueta }).fill(texto.slice(0, 12))
+  await zona.getByRole('option', { name: texto }).click()
+}
 
 async function autenticar(request: APIRequestContext) {
   const login = await request.post(`${API}/auth/login`, { data: { email: ADMIN.email, password: ADMIN.clave } })
@@ -38,14 +44,14 @@ test('registrar una compra de dos líneas y ver los lotes nuevos en Inventario',
   await ingresar(page)
   await page.goto('/compras?seccion=nueva')
   const linea1 = page.getByRole('listitem', { name: 'Línea 1' })
-  await linea1.getByLabel('Insumo').selectOption({ label: harina.nombre })
+  await elegir(linea1, 'Insumo', harina.nombre)
   await linea1.getByLabel('Cantidad').fill('2')
   await linea1.getByLabel('Costo total').fill('300000')
   await expect(linea1).toContainText('= 100 kg a $3.000 el kg')
 
   await page.getByRole('button', { name: 'Agregar línea' }).click()
   const linea2 = page.getByRole('listitem', { name: 'Línea 2' })
-  await linea2.getByLabel('Insumo').selectOption({ label: azucar.nombre })
+  await elegir(linea2, 'Insumo', azucar.nombre)
   await linea2.getByLabel('Cantidad').fill('4')
   await linea2.getByLabel('Costo total').fill('45000')
   await expect(linea2).toContainText('= 10 kg a $4.500 el kg')
@@ -89,7 +95,7 @@ test('registrar producción con vista previa del costo', async ({ page, request 
   await page.goto('/inventario')
   await page.getByRole('button', { name: 'Registrar producción' }).click()
   await expect(page).toHaveURL(/seccion=produccion/)
-  await page.getByLabel('Producto').selectOption({ label: producto.nombre })
+  await elegir(page, 'Producto', producto.nombre)
   await page.getByLabel('Unidades producidas').fill('12')
 
   // 600 g × $3 = $1.800 ÷ 12 = $150 por unidad.

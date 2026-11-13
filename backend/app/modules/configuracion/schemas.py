@@ -40,6 +40,8 @@ CLAVES: dict[str, tuple[TypeAdapter, Any]] = {
     "dias_alerta_vencimiento": (TypeAdapter(int), 3),
     "permitir_venta_sin_stock": (TypeAdapter(bool), False),
     "impuestos": (TypeAdapter(Impuestos), Impuestos()),
+    # Margen sobre el precio por debajo del cual el costeo de recetas avisa (RF-07), en %.
+    "margen_minimo": (TypeAdapter(Porcentaje), Decimal(30)),
 }
 
 

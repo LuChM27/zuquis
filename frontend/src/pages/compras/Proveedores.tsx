@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useSesion } from '../../auth/contexto'
-import { Aviso, Casilla, Celda, FilaTabla, Interruptor, ListaDetalle, PanelDetalle, Tabla, Vacio } from '../../components/formulario'
+import { CasillasConBusqueda, FiltroLista } from '../../components/Buscador'
+import { Aviso, Celda, FilaTabla, Interruptor, ListaDetalle, PanelDetalle, Tabla, Vacio } from '../../components/formulario'
 import { Boton, Campo, Chip } from '../../components/ui'
 import { api } from '../../lib/api'
+import { coincide } from '../../lib/buscar'
 import type { Insumo, Proveedor } from '../../lib/tipos'
 import { useGuardar, useSeleccion, vacioANulo } from '../configuracion/acciones'
 import { PieFormulario, TarjetaLista } from '../configuracion/comun'
@@ -16,16 +18,21 @@ export function Proveedores() {
     queryFn: () => api<Proveedor[]>('/proveedores?incluir_inactivos=true'),
   })
   const { sel, version, elegir, fijar } = useSeleccion()
-  const lista = proveedores.data ?? []
+  const [busqueda, setBusqueda] = useState('')
+  const todos = proveedores.data ?? []
+  const lista = todos.filter((p) => coincide(`${p.nombre} ${p.insumos.map((i) => i.nombre).join(' ')}`, busqueda))
   const actual = sel === 'nuevo' ? null : (lista.find((p) => p.id === sel) ?? lista[0] ?? null)
-  const modo = editor && (sel === 'nuevo' || (!actual && proveedores.isSuccess)) ? 'nuevo' : actual
+  const modo = editor && (sel === 'nuevo' || (!actual && proveedores.isSuccess && todos.length === 0)) ? 'nuevo' : actual
 
   return (
     <ListaDetalle
       lista={
         <TarjetaLista titulo="Proveedores" nuevo={editor ? 'Nuevo proveedor' : undefined} alNuevo={() => elegir('nuevo')}>
+          {todos.length > 0 && (
+            <FiltroLista etiqueta="Buscar proveedor o insumo" valor={busqueda} alCambiar={setBusqueda} className="mb-4 max-w-sm" />
+          )}
           {proveedores.isError && <Aviso>No pudimos cargar los proveedores. Recarga la página para intentarlo de nuevo.</Aviso>}
-          {proveedores.isSuccess && lista.length === 0 && <Vacio>Todavía no hay proveedores.</Vacio>}
+          {proveedores.isSuccess && lista.length === 0 && <Vacio>{todos.length ? 'Ningún proveedor coincide.' : 'Todavía no hay proveedores.'}</Vacio>}
           {lista.length > 0 && (
             <Tabla columnas={[{ texto: 'Proveedor' }, { texto: 'Suministra', ocultarMovil: true }, { texto: 'Estado' }]}>
               {lista.map((p) => (
@@ -109,19 +116,12 @@ function FormProveedor({ proveedor, alGuardar }: { proveedor: Proveedor | null; 
         <Campo etiqueta="Correo" type="email" value={email} maxLength={200} onChange={(e) => setEmail(e.target.value)} error={errores.email} />
       </div>
       {(insumos.data?.length ?? 0) > 0 && (
-        <fieldset>
-          <legend className="mb-1 text-sm font-semibold">Insumos que suministra</legend>
-          <div className="max-h-64 overflow-y-auto rounded-control border border-linea px-3 py-1">
-            {insumos.data!.map((i) => (
-              <Casilla
-                key={i.id}
-                etiqueta={i.nombre}
-                marcada={suministra.includes(i.id)}
-                alCambiar={(v) => setSuministra((s) => (v ? [...s, i.id] : s.filter((x) => x !== i.id)))}
-              />
-            ))}
-          </div>
-        </fieldset>
+        <CasillasConBusqueda
+          etiqueta="Insumos que suministra"
+          opciones={insumos.data!.map((i) => ({ valor: i.id, texto: i.nombre }))}
+          marcadas={suministra}
+          alCambiar={setSuministra}
+        />
       )}
       {!nuevo && <Interruptor etiqueta="Activo" activo={activo} alCambiar={setActivo} />}
       {guardar.error && <Aviso>{guardar.error}</Aviso>}

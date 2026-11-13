@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { useSesion } from '../../auth/contexto'
+import { FiltroLista } from '../../components/Buscador'
 import { Dialogo } from '../../components/Dialogo'
+import { coincide } from '../../lib/buscar'
 import { Aviso, ListaDetalle, PanelDetalle, Pildoras } from '../../components/formulario'
 import { Boton, EncabezadoPagina, Tarjeta } from '../../components/ui'
 import { api } from '../../lib/api'
@@ -28,6 +30,7 @@ export function Inventario() {
   const [elegido, setElegido] = useState<string>()
   const [hojaAbierta, setHojaAbierta] = useState(false)
   const [accion, setAccion] = useState<Accion>(null)
+  const [busqueda, setBusqueda] = useState('')
   const hoy = hoyIso()
 
   const stock = useQuery({ queryKey: ['inventario', 'stock'], queryFn: () => api<StockItem[]>('/inventario/stock') })
@@ -38,7 +41,7 @@ export function Inventario() {
   const todos = stock.data ?? []
   const insumos = todos.filter((s) => s.tipo_item === 'insumo')
   const productos = todos.filter((s) => s.tipo_item === 'producto')
-  const lista = pestana === 'productos' ? productos : insumos
+  const lista = (pestana === 'productos' ? productos : insumos).filter((s) => coincide(s.nombre, busqueda))
   // En escritorio siempre hay uno en el panel: el elegido o el primero de la lista.
   const actual = lista.find((s) => s.item_id === elegido) ?? (celular ? undefined : lista[0])
 
@@ -107,6 +110,14 @@ export function Inventario() {
               />
             </div>
             {stock.isError && <Aviso>No pudimos cargar el inventario. Recarga la página para intentarlo de nuevo.</Aviso>}
+            {pestana !== 'movimientos' && (
+              <FiltroLista
+                etiqueta={pestana === 'productos' ? 'Buscar producto' : 'Buscar insumo'}
+                valor={busqueda}
+                alCambiar={setBusqueda}
+                className="mb-4 max-w-sm"
+              />
+            )}
             {pestana === 'movimientos' ? (
               <Movimientos stock={todos} />
             ) : (

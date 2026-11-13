@@ -2,7 +2,8 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 import { useState, type FormEvent } from 'react'
 import { useSesion } from '../../auth/contexto'
 import { Dialogo } from '../../components/Dialogo'
-import { AreaTexto, Aviso, Celda, FilaTabla, ListaDetalle, PanelDetalle, Selector, Tabla, Vacio } from '../../components/formulario'
+import { Buscador } from '../../components/Buscador'
+import { AreaTexto, Aviso, Celda, FilaTabla, ListaDetalle, PanelDetalle, Tabla, Vacio } from '../../components/formulario'
 import { Boton, Campo, Chip, Tarjeta } from '../../components/ui'
 import { useAvisos } from '../../components/usarAvisos'
 import { api, ErrorApi } from '../../lib/api'
@@ -92,15 +93,18 @@ function NuevaProduccion({ alRegistrar }: { alRegistrar: (p: TProduccion) => voi
             <h2 className="font-serif text-[28px] leading-tight font-medium">Registrar producción</h2>
             <p className="mt-1 text-sm text-cafe-suave">Descuenta los insumos de la receta por PEPS y deja las unidades en vitrina.</p>
           </div>
-          <Selector etiqueta="Producto" value={productoId} onChange={(e) => setProductoId(e.target.value)}>
-            <option value="">Elige un producto por lote</option>
-            {productos.data?.map((x) => (
-              <option key={x.id} value={x.id} disabled={!x.tiene_receta}>
-                {x.nombre}
-                {x.tiene_receta ? '' : ' (sin receta)'}
-              </option>
-            ))}
-          </Selector>
+          <Buscador
+            etiqueta="Producto"
+            placeholder="Busca un producto por lote"
+            opciones={(productos.data ?? []).map((x) => ({
+              valor: x.id,
+              texto: x.nombre,
+              detalle: x.tiene_receta ? undefined : 'sin receta',
+              deshabilitada: !x.tiene_receta,
+            }))}
+            valor={productoId}
+            alCambiar={setProductoId}
+          />
           <div className="grid grid-cols-2 gap-3">
             <Campo etiqueta="Unidades producidas" inputMode="decimal" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
             <Campo

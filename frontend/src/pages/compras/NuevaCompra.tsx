@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Camera, Plus, Trash2 } from 'lucide-react'
 import { useRef, useState, type FormEvent } from 'react'
+import { Buscador } from '../../components/Buscador'
 import { CampoDinero } from '../../components/CampoDinero'
 import { Aviso, Selector } from '../../components/formulario'
 import { Boton, Campo, Tarjeta } from '../../components/ui'
@@ -53,6 +54,11 @@ export function NuevaCompra({ alRegistrar }: { alRegistrar: (c: Compra) => void 
   const delProveedor = new Set(proveedor?.insumos.map((i) => i.id))
   const ordenados = [...(insumos.data ?? [])].sort((a, b) => Number(delProveedor.has(b.id)) - Number(delProveedor.has(a.id)))
   const total = lineas.reduce((s, l) => s + (l.costo ?? 0), 0)
+  const opcionesInsumos = ordenados.map((i) => ({
+    valor: i.id,
+    texto: i.nombre,
+    detalle: delProveedor.has(i.id) ? `${i.unidad_base} · lo trae ${proveedor?.nombre}` : i.unidad_base,
+  }))
 
   function cambiar(clave: number, cambio: Partial<Linea>) {
     setLineas((ls) => ls.map((l) => (l.clave === clave ? { ...l, ...cambio } : l)))
@@ -149,14 +155,13 @@ export function NuevaCompra({ alRegistrar }: { alRegistrar: (c: Compra) => void 
         <p className="mt-1 text-sm text-cafe-suave">Cada línea crea un lote con su costo real; el inventario se actualiza al guardar.</p>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          <Selector etiqueta="Proveedor" value={proveedorId} onChange={(e) => setProveedorId(e.target.value)}>
-            <option value="">Sin proveedor</option>
-            {proveedores.data?.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nombre}
-              </option>
-            ))}
-          </Selector>
+          <Buscador
+            etiqueta="Proveedor"
+            placeholder="Busca o deja sin proveedor"
+            opciones={[{ valor: '', texto: 'Sin proveedor' }, ...(proveedores.data ?? []).map((p) => ({ valor: p.id, texto: p.nombre }))]}
+            valor={proveedorId}
+            alCambiar={setProveedorId}
+          />
           <Campo etiqueta="Fecha" type="date" value={fecha} max={hoyIso()} onChange={(e) => setFecha(e.target.value)} />
           <Campo etiqueta="N.º de factura (opcional)" value={factura} maxLength={60} onChange={(e) => setFactura(e.target.value)} />
         </div>
@@ -180,23 +185,17 @@ export function NuevaCompra({ alRegistrar }: { alRegistrar: (c: Compra) => void 
                   <div className="grid grid-cols-2 gap-2.5 md:grid-cols-[minmax(0,2fr)_minmax(0,1.6fr)_6rem_9rem_9.5rem_auto] md:items-start">
                     <div className="col-span-2 md:col-span-1">
                       <span aria-hidden className="mb-1 block text-xs font-semibold text-cafe-suave md:hidden">Insumo</span>
-                      <select
-                        aria-label="Insumo"
-                        value={l.insumo_id}
-                        onChange={(e) => {
-                          const i = porId.get(e.target.value)
-                          cambiar(l.clave, { insumo_id: e.target.value, presentacion_id: i?.presentaciones.find((p) => p.activa)?.id ?? '' })
-                        }}
-                        className={campo(errores[`i${l.clave}`])}
-                      >
-                        <option value="">Elige un insumo</option>
-                        {ordenados.map((i) => (
-                          <option key={i.id} value={i.id}>
-                            {i.nombre}
-                          </option>
-                        ))}
-                      </select>
-                      {errores[`i${l.clave}`] && <p className="mt-1 text-sm text-peligro-texto">{errores[`i${l.clave}`]}</p>}
+                      <Buscador
+                        etiqueta="Insumo"
+                        ocultarEtiqueta
+                        placeholder="Busca un insumo"
+                        opciones={opcionesInsumos}
+                        valor={l.insumo_id}
+                        alCambiar={(v) =>
+                          cambiar(l.clave, { insumo_id: v, presentacion_id: porId.get(v)?.presentaciones.find((p) => p.activa)?.id ?? '' })
+                        }
+                        error={errores[`i${l.clave}`]}
+                      />
                     </div>
                     <div className="col-span-2 md:col-span-1">
                       <span aria-hidden className="mb-1 block text-xs font-semibold text-cafe-suave md:hidden">Presentación</span>

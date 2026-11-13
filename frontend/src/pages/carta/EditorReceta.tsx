@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { Buscador } from '../../components/Buscador'
 import { Aviso } from '../../components/formulario'
 import { Boton, Campo } from '../../components/ui'
 import { useAvisos } from '../../components/usarAvisos'
@@ -12,9 +13,6 @@ import type { CostoReceta, Insumo, Receta } from '../../lib/tipos'
 import { cantidadLegible } from '../../lib/unidades'
 import { mensajeDeError } from '../configuracion/acciones'
 import { leerCantidad } from '../inventario/comun'
-
-/** Margen sobre el precio por debajo del cual se avisa (RF-07). */
-export const MARGEN_MINIMO = 30
 
 interface Fila {
   clave: number
@@ -64,6 +62,7 @@ function Formulario({ base, receta, editable }: { base: string; receta: Receta |
   const [error, setError] = useState<string>()
   const [guardando, setGuardando] = useState(false)
   const unidades = new Map((insumos.data ?? []).map((i) => [i.id, i.unidad_base]))
+  const opcionesInsumos = (insumos.data ?? []).map((i) => ({ valor: i.id, texto: i.nombre, detalle: i.unidad_base }))
 
   function cambiar(clave: number, cambio: Partial<Fila>) {
     setFilas((f) => f.map((x) => (x.clave === clave ? { ...x, ...cambio } : x)))
@@ -130,27 +129,16 @@ function Formulario({ base, receta, editable }: { base: string; receta: Receta |
         <ul className="flex flex-col gap-2.5">
           {filas.map((f) => (
             <li key={f.clave} className="grid grid-cols-[minmax(0,1fr)_7.5rem_auto] items-start gap-2">
-              <div>
-                <select
-                  aria-label="Insumo"
-                  value={f.insumo_id}
-                  disabled={!editable}
-                  onChange={(e) => cambiar(f.clave, { insumo_id: e.target.value })}
-                  aria-invalid={errores[`i${f.clave}`] ? true : undefined}
-                  className={unir(
-                    'h-12 w-full rounded-control border bg-blanco px-3 text-base focus:border-dorado-borde focus:outline-none',
-                    errores[`i${f.clave}`] ? 'border-peligro' : 'border-dorado-claro',
-                  )}
-                >
-                  <option value="">Elige un insumo</option>
-                  {insumos.data?.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.nombre}
-                    </option>
-                  ))}
-                </select>
-                {errores[`i${f.clave}`] && <p className="mt-1 text-sm text-peligro-texto">{errores[`i${f.clave}`]}</p>}
-              </div>
+              <Buscador
+                etiqueta="Insumo"
+                ocultarEtiqueta
+                opciones={opcionesInsumos}
+                valor={f.insumo_id}
+                alCambiar={(v) => cambiar(f.clave, { insumo_id: v })}
+                deshabilitado={!editable}
+                placeholder="Busca un insumo"
+                error={errores[`i${f.clave}`]}
+              />
               <div>
                 <div className="relative">
                   <input
@@ -219,7 +207,7 @@ function Costo({ base }: { base: string }) {
   const c = costo.data
   if (!c) return null
   const porcentaje = c.margen_porcentaje !== null ? dec(c.margen_porcentaje) : null
-  const bajo = porcentaje !== null && porcentaje.lt(MARGEN_MINIMO)
+  const bajo = c.margen_bajo
   const sinCosto = c.items.filter((i) => i.costo === null).map((i) => i.insumo)
   return (
     <section aria-label="Costo y margen" className="mt-6 rounded-tarjeta border border-linea p-4">
@@ -265,7 +253,7 @@ function Costo({ base }: { base: string }) {
       {bajo && (
         <div className="mt-3">
           <Aviso>
-            El margen está por debajo del {MARGEN_MINIMO} %. Revisa el precio o la receta.
+            El margen está por debajo del {textoCantidad(dec(c.margen_minimo).toFixed())} % configurado. Revisa el precio o la receta.
           </Aviso>
         </div>
       )}

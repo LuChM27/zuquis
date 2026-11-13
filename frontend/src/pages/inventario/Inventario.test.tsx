@@ -138,7 +138,8 @@ describe('Inventario', () => {
     await screen.findByText('Harina de trigo', { selector: 'td' })
     await userEvent.click(screen.getAllByRole('button', { name: 'Registrar merma' })[0])
     const dialogo = await screen.findByRole('dialog', { name: 'Registrar merma' })
-    await userEvent.selectOptions(within(dialogo).getByLabelText('Insumo o producto'), 'harina')
+    await userEvent.type(within(dialogo).getByRole('combobox', { name: 'Insumo o producto' }), 'harina')
+    await userEvent.click(within(dialogo).getByRole('option', { name: /Harina de trigo/ }))
     await userEvent.type(within(dialogo).getByLabelText('Cantidad (g)'), '500')
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Registrar merma' }))
     const post = peticiones.find((p) => p.url === '/api/v1/mermas')!
@@ -150,5 +151,13 @@ describe('Inventario', () => {
       motivo: 'danado',
     })
     expect(new Headers(post.init!.headers).get('Idempotency-Key')).toMatch(/[0-9a-f-]{36}/)
+  })
+
+  it('filtra la tabla escribiendo, sin importar tildes', async () => {
+    montar()
+    await screen.findByText('Harina de trigo', { selector: 'td' })
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Buscar insumo' }), 'LECHE')
+    expect(screen.queryByText('Harina de trigo', { selector: 'td' })).not.toBeInTheDocument()
+    expect(screen.getByText('Leche entera', { selector: 'td' })).toBeInTheDocument()
   })
 })
