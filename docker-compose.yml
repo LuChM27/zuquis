@@ -2,7 +2,11 @@
 services:
   db:
     image: postgres:17-alpine
+    # Las fechas se guardan como instantes (timestamptz) y se muestran en hora de Colombia en
+    # toda consulta: la app, psql o cualquier herramienta externa.
+    command: ["postgres", "-c", "timezone=America/Bogota", "-c", "log_timezone=America/Bogota"]
     environment:
+      TZ: America/Bogota
       POSTGRES_DB: ${POSTGRES_DB:-zuquis}
       POSTGRES_USER: ${POSTGRES_USER:-zuquis}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zuquis}
