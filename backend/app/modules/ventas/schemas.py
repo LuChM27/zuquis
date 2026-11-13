@@ -40,6 +40,13 @@ class PagoEntrada(BaseModel):
     recibido: Pesos | None = Field(default=None, description="Solo efectivo: con cuánto paga")
 
 
+class AutorizacionEntrada(BaseModel):
+    """Credencial de quien autoriza un descuento por encima del tope del rol (RN-16)."""
+
+    email: str = Field(min_length=3, max_length=200)
+    clave: str = Field(min_length=1, max_length=200)
+
+
 class VentaCrear(BaseModel):
     tipo_servicio: TipoServicio = "local"
     cliente_id: uuid.UUID | None = None
@@ -49,6 +56,9 @@ class VentaCrear(BaseModel):
     valor_domicilio: Pesos = Field(default=0, ge=0)
     pagos: list[PagoEntrada] = Field(
         default_factory=list, max_length=10, description="Vacío solo si se cobra $0 (cortesía)"
+    )
+    autorizacion: AutorizacionEntrada | None = Field(
+        default=None, description="Solo si algún descuento supera el tope del rol"
     )
 
     @model_validator(mode="after")
@@ -98,6 +108,8 @@ class VentaSalida(BaseModel):
     subtotal: int
     descuento_total: int
     descuento_motivo: str | None
+    descuento_autorizado_por: uuid.UUID | None
+    cortesia: bool = Field(description="Descuento del 100 %: su costo es gasto de cortesía")
     total: int
     propina: int
     valor_domicilio: int

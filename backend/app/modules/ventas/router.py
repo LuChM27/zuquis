@@ -8,6 +8,7 @@ from app.core.db import obtener_db
 from app.core.deps import Contexto, requiere, requiere_alguno
 from app.core.idempotencia import Idempotencia, idempotencia
 from app.modules.ventas import service
+from app.modules.ventas.descuentos import AutorizacionInvalida, contar_intento_fallido
 from app.modules.ventas.schemas import VentaCrear, VentaSalida
 from app.shared.paginacion import Pagina, ParamsPagina, RangoFechas
 
@@ -27,7 +28,15 @@ def crear_venta(
     reintento del POS por una falla de red devuelve la misma venta sin duplicarla."""
     if (previa := idem.iniciar(db, ctx)) is not None:
         return previa
-    venta = service.crear(db, ctx, datos)
+    try:
+        venta = service.crear(db, ctx, datos)
+    except AutorizacionInvalida as exc:
+        # La venta se revierte, pero el intento fallido del autorizador sí queda (bloqueo).
+        db.rollback()
+        if exc.usuario_id:
+            contar_intento_fallido(db, exc.usuario_id)
+            db.commit()
+        raise
     salida = service.salida(db, venta).model_dump(mode="json")
     idem.guardar(db, 201, salida)
     db.commit()

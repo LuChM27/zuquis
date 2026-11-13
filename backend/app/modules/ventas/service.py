@@ -25,6 +25,7 @@ from app.modules.configuracion.models import MetodoPago
 from app.modules.inventario import motor
 from app.modules.inventario.models import Insumo
 from app.modules.produccion.service import cantidades_por_insumo
+from app.modules.ventas import descuentos
 from app.modules.ventas.models import (
     Consecutivo,
     Venta,
@@ -305,6 +306,34 @@ def _movimientos_caja(db: Session, ctx: Contexto, venta: Venta, datos: VentaCrea
         )
 
 
+def _autorizar_descuentos(
+    db: Session,
+    ctx: Contexto,
+    datos: VentaCrear,
+    lineas: list[_Linea],
+    base_venta: int,
+    descuento_venta: int,
+) -> Usuario | None:
+    """RN-16: cada descuento se compara con el tope del rol; si alguno lo supera, hace falta la
+    credencial de quien autoriza. Devuelve el autorizador, o None si no hizo falta."""
+    tope = descuentos.tope_del_usuario(db, ctx)
+    aplicados = [(linea.descuento, linea.bruto) for linea in lineas] + [
+        (descuento_venta, base_venta)
+    ]
+    if not any(descuentos.supera_tope(monto, base, tope) for monto, base in aplicados):
+        return None
+    if datos.autorizacion is None:
+        raise ErrorNegocio(
+            "DESCUENTO_REQUIERE_AUTORIZACION",
+            "El descuento supera el tope de tu rol: necesita la autorización de un administrador.",
+            {"tope": format(tope.normalize(), "f")},
+            status=403,
+        )
+    return descuentos.verificar_autorizador(
+        db, ctx, datos.autorizacion.email, datos.autorizacion.clave
+    )
+
+
 def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:
     sesion = caja.requerir_caja(db, ctx, "vender")
     lineas = _lineas(db, ctx, datos)
@@ -316,6 +345,10 @@ def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:
     total = subtotal - descuento_total
     cobrado = total + datos.propina + datos.valor_domicilio
     _validar_pagos(db, ctx, datos, cobrado)
+
+    autorizador = _autorizar_descuentos(
+        db, ctx, datos, lineas, subtotal - descuento_items, descuento_venta
+    )
 
     motivos = [d.motivo for d in [datos.descuento, *(i.descuento for i in datos.items)] if d]
     venta = Venta(
@@ -332,6 +365,7 @@ def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:
         propina=datos.propina,
         estado="pagada",
         descuento_motivo="; ".join(dict.fromkeys(motivos)) or None,
+        descuento_autorizado_por=autorizador.id if autorizador else None,
         usuario_id=ctx.usuario_id,
         fecha=ahora(),
     )
@@ -384,6 +418,8 @@ def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:
     db.flush()
 
     _movimientos_caja(db, ctx, venta, datos)
+    if autorizador:
+        descuentos.auditar_autorizacion(db, ctx, autorizador, venta.id, descuento_total)
     auditar(
         db,
         ctx,
@@ -478,6 +514,8 @@ def salida(db: Session, v: Venta) -> VentaSalida:
         subtotal=v.subtotal,
         descuento_total=v.descuento_total,
         descuento_motivo=v.descuento_motivo,
+        descuento_autorizado_por=v.descuento_autorizado_por,
+        cortesia=v.subtotal > 0 and v.total == 0,
         total=v.total,
         propina=v.propina,
         valor_domicilio=v.valor_domicilio,

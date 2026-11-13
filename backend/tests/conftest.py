@@ -33,6 +33,9 @@ from app.modules.archivos import service as archivos_service  # noqa: E402
 from app.modules.auth.models import Usuario  # noqa: E402
 from app.modules.usuarios.models import Rol, UsuarioRol  # noqa: E402
 
+# Escenarios compartidos entre archivos de pruebas.
+pytest_plugins = ["tests.fixtures_ventas"]
+
 SEDE_PRINCIPAL = uuid.UUID("00000000-0000-0000-0000-000000000001")
 CLAVE = "clave-segura-123"
 
