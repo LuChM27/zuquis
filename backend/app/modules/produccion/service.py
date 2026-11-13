@@ -19,7 +19,12 @@ from app.modules.carta.service import obtener_producto, receta_vigente
 from app.modules.inventario import motor
 from app.modules.inventario.models import Insumo, Lote, MovimientoInventario
 from app.modules.produccion.models import Produccion
-from app.modules.produccion.schemas import ConsumoSalida, ProduccionCrear, ProduccionSalida
+from app.modules.produccion.schemas import (
+    ConsumoSalida,
+    ProduccionCrear,
+    ProduccionSalida,
+    ProduccionVistaPrevia,
+)
 from app.shared.dinero import ESCALA_CANTIDAD, dividir_costo
 from app.shared.errores import Conflicto, ErrorNegocio, NoEncontrado
 from app.shared.fechas import ahora, hoy
@@ -124,6 +129,17 @@ def crear(db: Session, ctx: Contexto, datos: ProduccionCrear) -> Produccion:
         },
     )
     return produccion
+
+
+def vista_previa(db: Session, ctx: Contexto, datos: ProduccionCrear) -> ProduccionVistaPrevia:
+    """Ejecuta la producción dentro de un savepoint y la deshace: la vista previa sale de la
+    misma lógica (PEPS, redondeos, vencimiento), así que coincide con lo que se registrará."""
+    savepoint = db.begin_nested()
+    try:
+        completa = salida(db, crear(db, ctx, datos))
+    finally:
+        savepoint.rollback()
+    return ProduccionVistaPrevia.model_validate(completa.model_dump())
 
 
 def obtener(

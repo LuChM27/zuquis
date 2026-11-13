@@ -43,5 +43,18 @@ class ProduccionSalida(BaseModel):
     consumos: list[ConsumoSalida]
 
 
+class ProduccionVistaPrevia(BaseModel):
+    """Lo que registraría la producción (insumos por PEPS y costo) sin registrarla."""
+
+    producto_id: uuid.UUID
+    producto: str
+    receta_version: int
+    cantidad_producida: Cantidad
+    costo_total: int
+    costo_unitario: CostoUnitario
+    fecha_vencimiento: date | None
+    consumos: list[ConsumoSalida]
+
+
 class AnulacionEntrada(BaseModel):
     motivo: str = Field(min_length=3, max_length=200)

@@ -204,3 +204,31 @@ def test_produccion_registra_pero_solo_el_admin_anula(
         f"{API}/producciones/{p.json()['id']}/anular", headers=produccion, json={"motivo": "Error"}
     )
     assert r.status_code == 403
+
+
+def test_vista_previa_coincide_con_la_produccion_y_no_mueve_nada(cliente, admin, escenario, db):
+    harina = escenario["harina"]
+    antes = motor.stock(db, SEDE_PRINCIPAL, "insumo", uuid.UUID(harina["id"]))
+    r = cliente.post(
+        f"{API}/producciones/vista-previa",
+        headers=admin,
+        json={"producto_id": escenario["producto"]["id"], "cantidad_producida": "12"},
+    )
+    assert r.status_code == 200, r.text
+    previa = r.json()
+    assert motor.stock(db, SEDE_PRINCIPAL, "insumo", uuid.UUID(harina["id"])) == antes
+    assert cliente.get(f"{API}/producciones", headers=admin).json()["total"] == 0
+
+    real = producir(cliente, admin, escenario["producto"]).json()
+    for campo in ("costo_total", "costo_unitario", "receta_version", "fecha_vencimiento"):
+        assert previa[campo] == real[campo]
+    assert previa["consumos"] == real["consumos"]
+
+
+def test_vista_previa_avisa_si_no_alcanza(cliente, admin, escenario):
+    r = cliente.post(
+        f"{API}/producciones/vista-previa",
+        headers=admin,
+        json={"producto_id": escenario["producto"]["id"], "cantidad_producida": "1000"},
+    )
+    assert (r.status_code, r.json()["codigo"]) == (409, "STOCK_INSUFICIENTE")

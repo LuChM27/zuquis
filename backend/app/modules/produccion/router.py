@@ -7,7 +7,12 @@ from app.core.db import obtener_db
 from app.core.deps import Contexto, requiere, requiere_alguno
 from app.core.idempotencia import Idempotencia, idempotencia
 from app.modules.produccion import service
-from app.modules.produccion.schemas import AnulacionEntrada, ProduccionCrear, ProduccionSalida
+from app.modules.produccion.schemas import (
+    AnulacionEntrada,
+    ProduccionCrear,
+    ProduccionSalida,
+    ProduccionVistaPrevia,
+)
 from app.shared.paginacion import Pagina, ParamsPagina, RangoFechas
 
 router = APIRouter(tags=["Producción"])
@@ -39,6 +44,16 @@ def crear(
     idem.guardar(db, 201, salida)
     db.commit()
     return salida
+
+
+@router.post("/producciones/vista-previa", response_model=ProduccionVistaPrevia)
+def vista_previa(
+    datos: ProduccionCrear,
+    ctx: Contexto = Depends(requiere("produccion.crear")),
+    db: Session = Depends(obtener_db),
+):
+    """Insumos que se consumirían por PEPS y costo unitario resultante, sin registrar nada."""
+    return service.vista_previa(db, ctx, datos)
 
 
 @router.get("/producciones/{produccion_id}", response_model=ProduccionSalida)
