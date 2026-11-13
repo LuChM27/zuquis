@@ -30,6 +30,8 @@ class Configuracion(BaseSettings):
     login_limite_por_minuto: int = 20
 
     zona_horaria: str = "America/Bogota"
+    # Hora local (HH:MM) de las tareas nocturnas: verificación de inventario y limpieza.
+    tareas_hora: str = "02:00"
     cors_origins: str = "http://localhost:5173"
     archivos_dir: str = "./archivos"
     archivos_max_bytes: int = 5 * 1024 * 1024

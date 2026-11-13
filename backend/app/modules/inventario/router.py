@@ -1,4 +1,5 @@
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -6,20 +7,25 @@ from sqlalchemy.orm import Session
 from app.core.db import obtener_db
 from app.core.deps import Contexto, requiere, requiere_alguno
 from app.core.idempotencia import Idempotencia, idempotencia
-from app.modules.inventario import operaciones, service
-from app.modules.inventario.models import Insumo, Presentacion
+from app.modules.inventario import consultas, operaciones, service
+from app.modules.inventario.models import TIPOS_MOVIMIENTO, Insumo, Presentacion
 from app.modules.inventario.schemas import (
     AjusteCrear,
     AjusteSalida,
+    Alerta,
     InsumoCrear,
     InsumoEditar,
     InsumoSalida,
+    Kpis,
+    LoteSalida,
     MermaCrear,
     MermaSalida,
     MotivoMerma,
+    MovimientoSalida,
     PresentacionCrear,
     PresentacionEditar,
     PresentacionSalida,
+    StockItem,
     TipoItem,
 )
 from app.shared.paginacion import Pagina, ParamsPagina, RangoFechas
@@ -164,3 +170,89 @@ def registrar_ajuste(
     idem.guardar(db, 201, salida)
     db.commit()
     return salida
+
+
+# --- Stock, lotes, kardex y alertas (#23) ---------------------------------------------------
+
+lector_inventario = requiere("inventario.ver")
+TipoMovimiento = Literal[TIPOS_MOVIMIENTO]  # type: ignore[valid-type]
+
+
+@router.get("/inventario/stock", response_model=list[StockItem])
+def ver_stock(
+    tipo_item: TipoItem | None = Query(None),
+    ctx: Contexto = Depends(lector_inventario),
+    db: Session = Depends(obtener_db),
+):
+    return consultas.stock(db, ctx, tipo_item)
+
+
+@router.get("/inventario/resumen", response_model=Kpis)
+def ver_resumen(ctx: Contexto = Depends(lector_inventario), db: Session = Depends(obtener_db)):
+    """Indicadores de la pantalla de inventario."""
+    return consultas.resumen(db, ctx)
+
+
+@router.get("/inventario/alertas", response_model=list[Alerta])
+def ver_alertas(ctx: Contexto = Depends(lector_inventario), db: Session = Depends(obtener_db)):
+    return consultas.alertas(db, ctx)
+
+
+@router.get("/inventario/movimientos", response_model=Pagina[MovimientoSalida])
+def listar_movimientos(
+    params: ParamsPagina = Depends(),
+    rango: RangoFechas = Depends(),
+    tipo_item: TipoItem | None = Query(None),
+    item_id: uuid.UUID | None = Query(None),
+    tipo: TipoMovimiento | None = Query(None),
+    ctx: Contexto = Depends(lector_inventario),
+    db: Session = Depends(obtener_db),
+):
+    items, total = consultas.movimientos(
+        db, ctx, params, rango, tipo_item=tipo_item, item_id=item_id, tipo=tipo
+    )
+    return Pagina(items=items, total=total, page=params.page, size=params.size)
+
+
+@router.get("/insumos/{insumo_id}/lotes", response_model=list[LoteSalida])
+def lotes_insumo(
+    insumo_id: uuid.UUID,
+    ctx: Contexto = Depends(lector_inventario),
+    db: Session = Depends(obtener_db),
+):
+    """Lotes con existencia en orden PEPS: el primero vigente es el que se usa primero."""
+    return consultas.lotes(db, ctx, "insumo", insumo_id)
+
+
+@router.get("/productos/{producto_id}/lotes", response_model=list[LoteSalida])
+def lotes_producto(
+    producto_id: uuid.UUID,
+    ctx: Contexto = Depends(lector_inventario),
+    db: Session = Depends(obtener_db),
+):
+    return consultas.lotes(db, ctx, "producto", producto_id)
+
+
+@router.get("/insumos/{insumo_id}/kardex", response_model=Pagina[MovimientoSalida])
+def kardex_insumo(
+    insumo_id: uuid.UUID,
+    params: ParamsPagina = Depends(),
+    rango: RangoFechas = Depends(),
+    ctx: Contexto = Depends(lector_inventario),
+    db: Session = Depends(obtener_db),
+):
+    """Cada entrada y salida en orden cronológico, con el saldo acumulado (RF-33)."""
+    items, total = consultas.kardex(db, ctx, params, rango, "insumo", insumo_id)
+    return Pagina(items=items, total=total, page=params.page, size=params.size)
+
+
+@router.get("/productos/{producto_id}/kardex", response_model=Pagina[MovimientoSalida])
+def kardex_producto(
+    producto_id: uuid.UUID,
+    params: ParamsPagina = Depends(),
+    rango: RangoFechas = Depends(),
+    ctx: Contexto = Depends(lector_inventario),
+    db: Session = Depends(obtener_db),
+):
+    items, total = consultas.kardex(db, ctx, params, rango, "producto", producto_id)
+    return Pagina(items=items, total=total, page=params.page, size=params.size)

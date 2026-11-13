@@ -37,6 +37,24 @@ services:
       db:
         condition: service_healthy
 
+  # Tareas nocturnas: verificación de inventario (RN-09) y limpieza de idempotencia.
+  tareas:
+    build: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://zuquis:zuquis@db:5432/zuquis}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env (ver .env.example)}
+      TAREAS_HORA: ${TAREAS_HORA:-02:00}
+    command: ["python", "-m", "app.tareas"]
+    volumes:
+      - ./backend:/app
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+
   web:
     image: node:22-alpine
     working_dir: /web
