@@ -68,6 +68,10 @@ class VentaCrear(BaseModel):
         return self
 
 
+class AnulacionEntrada(BaseModel):
+    motivo: str = Field(min_length=3, max_length=200)
+
+
 class ModificadorSalida(BaseModel):
     modificador_id: uuid.UUID
     nombre: str

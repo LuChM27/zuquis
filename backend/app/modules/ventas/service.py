@@ -42,7 +42,7 @@ from app.modules.ventas.schemas import (
     VentaSalida,
 )
 from app.shared.dinero import aplicar_porcentaje, costo_linea
-from app.shared.errores import ErrorNegocio, NoEncontrado
+from app.shared.errores import Conflicto, ErrorNegocio, NoEncontrado
 from app.shared.fechas import ahora, zona
 from app.shared.paginacion import ParamsPagina, RangoFechas, paginar
 
@@ -432,6 +432,33 @@ def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:
             "propina": venta.propina,
             "descuento_total": descuento_total,
         },
+    )
+    return venta
+
+
+def anular(db: Session, ctx: Contexto, venta_id: uuid.UUID, motivo: str) -> Venta:
+    """RF-15: la venta no se borra. El inventario vuelve a los mismos lotes con su costo original
+    (RN-12) y el dinero sale de la caja abierta hoy, aunque la venta sea de una caja ya cerrada
+    (RN-03). El número no se reutiliza (RN-04)."""
+    venta = obtener(db, ctx, venta_id, bloquear=True)
+    if venta.estado == "anulada":
+        raise Conflicto("YA_ANULADO", "Esta venta ya se anuló.")
+    caja.requerir_caja(db, ctx, "anular la venta (el dinero se devuelve desde la caja)")
+    motor.reversar(db, ctx, "venta", venta.id)
+    caja.reversar(db, ctx, "venta", venta.id, f"Anulación de la venta {venta.numero}: {motivo}")
+    venta.estado = "anulada"
+    venta.motivo_anulacion = motivo
+    venta.anulada_por = ctx.usuario_id
+    venta.anulada_en = ahora()
+    db.flush()
+    auditar(
+        db,
+        ctx,
+        "anular",
+        "ventas",
+        venta.id,
+        antes={"estado": "pagada"},
+        despues={"numero": venta.numero, "total": venta.total, "motivo": motivo},
     )
     return venta
 

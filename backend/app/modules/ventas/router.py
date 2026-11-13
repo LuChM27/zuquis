@@ -9,7 +9,7 @@ from app.core.deps import Contexto, requiere, requiere_alguno
 from app.core.idempotencia import Idempotencia, idempotencia
 from app.modules.ventas import service
 from app.modules.ventas.descuentos import AutorizacionInvalida, contar_intento_fallido
-from app.modules.ventas.schemas import VentaCrear, VentaSalida
+from app.modules.ventas.schemas import AnulacionEntrada, VentaCrear, VentaSalida
 from app.shared.paginacion import Pagina, ParamsPagina, RangoFechas
 
 router = APIRouter(tags=["Ventas"])
@@ -61,3 +61,21 @@ def ver_venta(
     venta_id: uuid.UUID, ctx: Contexto = Depends(lector_ventas), db: Session = Depends(obtener_db)
 ):
     return service.salida(db, service.obtener(db, ctx, venta_id))
+
+
+@router.post("/ventas/{venta_id}/anular", response_model=VentaSalida)
+def anular_venta(
+    venta_id: uuid.UUID,
+    datos: AnulacionEntrada,
+    ctx: Contexto = Depends(requiere("ventas.anular")),
+    idem: Idempotencia = Depends(idempotencia()),
+    db: Session = Depends(obtener_db),
+):
+    """Anula con motivo: devuelve inventario a sus lotes y el dinero desde la caja abierta."""
+    if (previa := idem.iniciar(db, ctx)) is not None:
+        return previa
+    venta = service.anular(db, ctx, venta_id, datos.motivo)
+    salida = service.salida(db, venta).model_dump(mode="json")
+    idem.guardar(db, 200, salida)
+    db.commit()
+    return salida
