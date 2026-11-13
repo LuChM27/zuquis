@@ -28,6 +28,13 @@ from app.modules.inventario.models import (
 )
 from app.modules.produccion.models import Produccion
 from app.modules.usuarios.models import Permiso, Rol, UsuarioRol, rol_permisos
+from app.modules.ventas.models import (
+    Consecutivo,
+    Venta,
+    VentaItem,
+    VentaItemModificador,
+    VentaPago,
+)
 
 __all__ = [
     "AjusteInventario",
@@ -39,6 +46,7 @@ __all__ = [
     "Compra",
     "CompraItem",
     "Configuracion",
+    "Consecutivo",
     "FaltanteInventario",
     "Idempotencia",
     "Insumo",
@@ -62,6 +70,10 @@ __all__ = [
     "Unidad",
     "Usuario",
     "UsuarioRol",
+    "Venta",
+    "VentaItem",
+    "VentaItemModificador",
+    "VentaPago",
     "VerificacionInventario",
     "producto_modificadores",
     "proveedor_insumos",

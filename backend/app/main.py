@@ -19,6 +19,7 @@ from app.modules.configuracion.router import router as configuracion_router
 from app.modules.inventario.router import router as inventario_router
 from app.modules.produccion.router import router as produccion_router
 from app.modules.usuarios.router import router as usuarios_router
+from app.modules.ventas.router import router as ventas_router
 from app.shared.errores import registrar_manejadores
 
 PREFIJO_API = "/api/v1"
@@ -68,6 +69,7 @@ def crear_app(sincronizar_al_iniciar: bool = True) -> FastAPI:
         compras_router,
         produccion_router,
         caja_router,
+        ventas_router,
     ):
         api.include_router(router)
     app.include_router(api)

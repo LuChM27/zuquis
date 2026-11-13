@@ -94,10 +94,13 @@ def crear_usuario(db: Session):
     """crear_usuario("cajero") crea un usuario con ese rol base en la sede principal."""
 
     def _crear(
-        *claves_rol: str, email: str | None = None, sede_id: uuid.UUID = SEDE_PRINCIPAL
+        *claves_rol: str,
+        email: str | None = None,
+        sede_id: uuid.UUID = SEDE_PRINCIPAL,
+        nombre: str = "Prueba",
     ) -> Usuario:
         usuario = Usuario(
-            nombre="Prueba",
+            nombre=nombre,
             email=email or f"{uuid.uuid4().hex[:8]}@zuquis.test",
             password_hash=hashear_clave(CLAVE),
         )
