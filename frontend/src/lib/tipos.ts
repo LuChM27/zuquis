@@ -86,3 +86,118 @@ export const MODULOS: Record<string, string> = {
   usuarios: 'Usuarios',
   auditoria: 'Auditoría',
 }
+
+// --- Inventario (backend/app/modules/inventario/schemas.py) ---------------------------------
+
+export type TipoItem = 'insumo' | 'producto'
+export type EstadoStock = 'bien' | 'bajo_minimo' | 'por_vencer' | 'vencido'
+
+export interface StockItem {
+  tipo_item: TipoItem
+  item_id: string
+  nombre: string
+  /** Unidad base: g, ml o und. */
+  unidad: string
+  /** Lo vigente; lo vencido sin dar de baja va aparte. */
+  cantidad: string
+  cantidad_vencida: string
+  minimo: string
+  proximo_vencimiento: string | null
+  estado: EstadoStock
+  valor: number
+  lotes: number
+  usado_en_recetas: number
+}
+
+export interface ResumenInventario {
+  valor_inventario: number
+  dias_alerta_vencimiento: number
+  bajo_minimo: string[]
+  lotes_por_vencer: number
+  /** Un nombre por lote que vence pronto. */
+  por_vencer: string[]
+  mermas_mes: number
+}
+
+export interface Lote {
+  id: string
+  origen: 'compra' | 'produccion' | 'ajuste'
+  origen_id: string | null
+  cantidad_inicial: string
+  cantidad_disponible: string
+  costo_unitario: string
+  fecha_ingreso: string
+  fecha_vencimiento: string | null
+  vencido: boolean
+  se_usa_primero: boolean
+  proveedor: string | null
+}
+
+export type TipoMovimiento =
+  | 'compra'
+  | 'venta'
+  | 'consumo_produccion'
+  | 'entrada_produccion'
+  | 'merma'
+  | 'ajuste'
+  | 'reverso_anulacion'
+
+export interface Movimiento {
+  id: string
+  fecha: string
+  tipo: TipoMovimiento
+  tipo_item: TipoItem
+  item_id: string
+  item_nombre: string | null
+  lote_id: string
+  cantidad: string
+  costo_unitario: string
+  costo_total: number
+  referencia_tipo: string
+  referencia_id: string
+  usuario: string | null
+  saldo_cantidad: string | null
+  saldo_costo: number | null
+}
+
+export interface RecetaUso {
+  receta_id: string
+  nombre: string
+  es_adicion: boolean
+  cantidad: string
+}
+
+export type MotivoMerma = 'vencido' | 'danado' | 'error_preparacion' | 'degustacion'
+
+export interface Merma {
+  id: string
+  tipo_item: TipoItem
+  item_id: string
+  item_nombre: string | null
+  lote_id: string | null
+  cantidad: string
+  motivo: MotivoMerma
+  nota: string | null
+  costo_total: number
+  fecha: string
+}
+
+export interface Ajuste {
+  id: string
+  tipo_item: TipoItem
+  item_id: string
+  cantidad_sistema: string
+  cantidad_contada: string
+  diferencia: string
+  cantidad_vencida: string
+  costo_total: number
+  motivo: string
+  fecha: string
+}
+
+export interface Pagina<T> {
+  items: T[]
+  total: number
+  page: number
+  size: number
+}

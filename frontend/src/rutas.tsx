@@ -6,11 +6,13 @@ import { SECCIONES } from './layout/navegacion'
 import { Configuracion } from './pages/configuracion/Configuracion'
 import { NoEncontrada, SeccionPendiente } from './pages/EnConstruccion'
 import { Ingresar } from './pages/Ingresar'
+import { Inventario } from './pages/inventario/Inventario'
 import { Inicio } from './pages/Inicio'
 
 /** Pantallas ya construidas; el resto de secciones muestran "llega en la fase N". */
 const PANTALLAS: Record<string, ReactNode> = {
   '/configuracion': <Configuracion />,
+  '/inventario': <Inventario />,
 }
 
 export const rutas: RouteObject[] = [
