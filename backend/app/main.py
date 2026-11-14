@@ -16,6 +16,7 @@ from app.modules.caja.router import router as caja_router
 from app.modules.carta.router import router as carta_router
 from app.modules.compras.router import router as compras_router
 from app.modules.configuracion.router import router as configuracion_router
+from app.modules.gastos.router import router as gastos_router
 from app.modules.inventario.router import router as inventario_router
 from app.modules.produccion.router import router as produccion_router
 from app.modules.usuarios.router import router as usuarios_router
@@ -70,6 +71,7 @@ def crear_app(sincronizar_al_iniciar: bool = True) -> FastAPI:
         produccion_router,
         caja_router,
         ventas_router,
+        gastos_router,
     ):
         api.include_router(router)
     app.include_router(api)

@@ -16,6 +16,7 @@ from app.modules.carta.models import (
 )
 from app.modules.compras.models import Compra, CompraItem, PagoCompra, Proveedor, proveedor_insumos
 from app.modules.configuracion.models import Configuracion, MetodoPago, Sede, Unidad
+from app.modules.gastos.models import CategoriaGasto, Gasto
 from app.modules.inventario.models import (
     AjusteInventario,
     FaltanteInventario,
@@ -44,11 +45,13 @@ __all__ = [
     "CajaMovimiento",
     "CajaSesion",
     "Categoria",
+    "CategoriaGasto",
     "Compra",
     "CompraItem",
     "Configuracion",
     "Consecutivo",
     "FaltanteInventario",
+    "Gasto",
     "Idempotencia",
     "Insumo",
     "Lote",

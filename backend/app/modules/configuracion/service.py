@@ -191,6 +191,10 @@ def crear_sede(db: Session, ctx: Contexto, datos: SedeCrear) -> Sede:
         )
     for orden, (nombre, icono) in enumerate(CATEGORIAS_INICIALES, start=1):
         db.add(Categoria(sede_id=sede.id, nombre=nombre, orden=orden, icono=icono))
+    # Import tardío: gastos depende de caja, que depende de configuración.
+    from app.modules.gastos.service import sembrar_categorias
+
+    sembrar_categorias(db, sede.id)
     db.flush()
     auditar(db, ctx, "crear", "sedes", sede.id, despues=instantanea(sede, _CAMPOS_SEDE))
     return sede
