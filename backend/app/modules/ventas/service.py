@@ -329,9 +329,10 @@ def _autorizar_descuentos(
             {"tope": format(tope.normalize(), "f")},
             status=403,
         )
-    return descuentos.verificar_autorizador(
-        db, ctx, datos.autorizacion.email, datos.autorizacion.clave
-    )
+    a = datos.autorizacion
+    if a.pin is not None:
+        return descuentos.verificar_autorizador_pin(db, ctx, a.usuario_id, a.pin)
+    return descuentos.verificar_autorizador(db, ctx, a.email, a.clave)
 
 
 def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:

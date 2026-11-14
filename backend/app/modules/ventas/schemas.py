@@ -41,10 +41,21 @@ class PagoEntrada(BaseModel):
 
 
 class AutorizacionEntrada(BaseModel):
-    """Credencial de quien autoriza un descuento por encima del tope del rol (RN-16)."""
+    """Credencial de quien autoriza un descuento por encima del tope del rol (RN-16): correo y
+    contraseña, o usuario y PIN (#35)."""
 
-    email: str = Field(min_length=3, max_length=200)
-    clave: str = Field(min_length=1, max_length=200)
+    email: str | None = Field(default=None, min_length=3, max_length=200)
+    clave: str | None = Field(default=None, min_length=1, max_length=200)
+    usuario_id: uuid.UUID | None = None
+    pin: str | None = Field(default=None, pattern=r"^\d{4,6}$")
+
+    @model_validator(mode="after")
+    def _una_credencial(self):
+        con_clave = self.email is not None and self.clave is not None
+        con_pin = self.usuario_id is not None and self.pin is not None
+        if con_clave == con_pin:
+            raise ValueError("Indica correo y contraseña, o usuario y PIN.")
+        return self
 
 
 class VentaCrear(BaseModel):

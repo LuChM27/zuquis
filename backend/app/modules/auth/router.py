@@ -9,6 +9,9 @@ from app.core.limite import limitar
 from app.modules.auth import service
 from app.modules.auth.models import Usuario
 from app.modules.auth.schemas import (
+    CajeroResumen,
+    DefinirPin,
+    IngresoPin,
     LoginEntrada,
     SedeResumen,
     TokenSalida,
@@ -129,3 +132,46 @@ def yo(ctx: Contexto = Depends(obtener_contexto), db: Session = Depends(obtener_
         roles=list(nombres),
         permisos=sorted(ctx.permisos),
     )
+
+
+# --- PIN corto para cambio de cajero (#35) --------------------------------------------------
+
+
+@router.put("/pin", status_code=204)
+def definir_pin(
+    datos: DefinirPin, ctx: Contexto = Depends(obtener_contexto), db: Session = Depends(obtener_db)
+) -> None:
+    """El usuario define o cambia su PIN confirmando con su contraseña."""
+    service.definir_pin(db, ctx.usuario_id, datos.clave_actual, datos.pin)
+    db.commit()
+
+
+@router.get("/cajeros", response_model=list[CajeroResumen])
+def cajeros(ctx: Contexto = Depends(obtener_contexto), db: Session = Depends(obtener_db)):
+    """Usuarios de la sede con PIN, para el selector de cajero del punto de venta."""
+    return service.cajeros_con_pin(db, ctx.sede_id)
+
+
+@router.post(
+    "/pin",
+    response_model=TokenSalida,
+    dependencies=[Depends(limitar("pin", lambda: obtener_config().login_limite_por_minuto))],
+)
+def ingresar_con_pin(
+    datos: IngresoPin,
+    request: Request,
+    response: Response,
+    ctx: Contexto = Depends(obtener_contexto),
+    db: Session = Depends(obtener_db),
+) -> TokenSalida:
+    """Cambia de cajero en un equipo ya autenticado: abre la sesión de quien ingresó el PIN."""
+    try:
+        sesion = service.ingresar_con_pin(
+            db, ctx.sede_id, datos.usuario_id, datos.pin, ip_cliente(request)
+        )
+    except ErrorNegocio:
+        db.commit()  # guarda el intento fallido
+        raise
+    db.commit()
+    _poner_cookie(response, sesion.refresh_token)
+    return _salida(sesion)

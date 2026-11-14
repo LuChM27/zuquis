@@ -12,6 +12,7 @@ from app.core.seguridad import (
     HASH_FICTICIO,
     crear_access_token,
     hash_refresh,
+    hashear_clave,
     nuevo_refresh_token,
     verificar_clave,
 )
@@ -196,3 +197,78 @@ def cerrar_sesion(db: Session, refresh_token: str | None) -> None:
     )
     if actual is not None:
         revocar_familia(db, actual.familia_id)
+
+
+# --- PIN corto (#35) ------------------------------------------------------------------------
+
+
+def bloqueado(usuario: Usuario) -> bool:
+    return bool(usuario.bloqueado_hasta and usuario.bloqueado_hasta > ahora())
+
+
+def registrar_fallo(usuario: Usuario) -> None:
+    """Tras N intentos fallidos (contraseña o PIN) la cuenta se bloquea un tiempo."""
+    cfg = obtener_config()
+    usuario.intentos_fallidos += 1
+    if usuario.intentos_fallidos >= cfg.login_max_intentos:
+        usuario.bloqueado_hasta = ahora() + timedelta(minutes=cfg.login_bloqueo_minutos)
+        usuario.intentos_fallidos = 0
+
+
+def definir_pin(db: Session, usuario_id: uuid.UUID, clave_actual: str, pin: str) -> None:
+    usuario = db.get(Usuario, usuario_id, with_for_update=True)
+    if usuario is None or not verificar_clave(usuario.password_hash, clave_actual):
+        raise NoAutenticado("La contraseña no es correcta.", "CREDENCIALES_INVALIDAS")
+    usuario.pin_hash = hashear_clave(pin)
+    auditar(db, None, "definir_pin", "usuarios", usuario.id, usuario_id=usuario.id)
+
+
+def cajeros_con_pin(db: Session, sede_id: uuid.UUID) -> list[Usuario]:
+    return list(
+        db.scalars(
+            select(Usuario)
+            .join(UsuarioRol, UsuarioRol.usuario_id == Usuario.id)
+            .where(UsuarioRol.sede_id == sede_id, Usuario.activo, Usuario.pin_hash.is_not(None))
+            .distinct()
+            .order_by(Usuario.nombre)
+        )
+    )
+
+
+def verificar_pin(db: Session, usuario_id: uuid.UUID, pin: str) -> Usuario:
+    """Valida el PIN contando los fallos como el login. No confirma: el router guarda el fallo."""
+    usuario = db.get(Usuario, usuario_id, with_for_update=True)
+    if usuario is None or not usuario.activo or usuario.pin_hash is None:
+        verificar_clave(HASH_FICTICIO, pin)
+        raise NoAutenticado("Usuario o PIN incorrectos.", "CREDENCIALES_INVALIDAS")
+    if bloqueado(usuario):
+        raise ErrorNegocio(
+            "USUARIO_BLOQUEADO",
+            "Demasiados intentos fallidos. Intenta de nuevo más tarde.",
+            {"hasta": usuario.bloqueado_hasta.isoformat()},
+            status=423,
+        )
+    if not verificar_clave(usuario.pin_hash, pin):
+        registrar_fallo(usuario)
+        auditar(db, None, "pin_fallido", "usuarios", usuario.id, usuario_id=usuario.id)
+        raise NoAutenticado("Usuario o PIN incorrectos.", "CREDENCIALES_INVALIDAS")
+    usuario.intentos_fallidos = 0
+    return usuario
+
+
+def ingresar_con_pin(
+    db: Session, sede_id: uuid.UUID, usuario_id: uuid.UUID, pin: str, ip: str | None
+) -> Sesion:
+    """Cambio rápido de cajero desde un equipo ya autenticado: abre la sesión del cajero en la
+    misma sede, sin contraseña."""
+    usuario = verificar_pin(db, usuario_id, pin)
+    sede = next((s for s in sedes_del_usuario(db, usuario.id) if s.id == sede_id), None)
+    if sede is None:
+        raise NoAutenticado("Ese usuario no trabaja en esta sede.", "SEDE_NO_PERMITIDA")
+    usuario.ultimo_acceso = ahora()
+    _, refresh = _abrir_sesion(db, usuario, sede, uuid.uuid4())
+    access, expira = crear_access_token(usuario.id, sede.id)
+    auditar(
+        db, None, "login_pin", "usuarios", usuario.id, usuario_id=usuario.id, sede_id=sede.id, ip=ip
+    )
+    return Sesion(usuario, sede, access, expira, refresh)

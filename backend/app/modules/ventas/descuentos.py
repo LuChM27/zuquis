@@ -73,6 +73,20 @@ def verificar_autorizador(db: Session, ctx: Contexto, email: str, clave: str) ->
     return usuario
 
 
+def verificar_autorizador_pin(
+    db: Session, ctx: Contexto, usuario_id: uuid.UUID, pin: str
+) -> Usuario:
+    usuario = db.get(Usuario, usuario_id)
+    if usuario is None or not usuario.activo or usuario.pin_hash is None:
+        raise AutorizacionInvalida()
+    bloqueado = usuario.bloqueado_hasta and usuario.bloqueado_hasta > ahora()
+    if bloqueado or not verificar_clave(usuario.pin_hash, pin):
+        raise AutorizacionInvalida(None if bloqueado else usuario.id)
+    if "descuentos.autorizar" not in permisos_en_sede(db, usuario.id, ctx.sede_id):
+        raise AutorizacionInvalida()
+    return usuario
+
+
 def contar_intento_fallido(db: Session, usuario_id: uuid.UUID) -> None:
     """Igual que en el login: tras N intentos, la cuenta se bloquea un tiempo."""
     cfg = obtener_config()
