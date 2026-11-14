@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
 import { Marca } from './Marca'
 import { NavegacionPrincipal, TarjetaUsuario } from './BarraLateral'
+import { useCaja } from '../pages/caja/usarCaja'
 import { SECCIONES } from './navegacion'
 
 /** Cabecera rosa del mockup de celular: logo, título de la sección y menú. */
@@ -10,6 +11,8 @@ export function CabeceraMovil() {
   const [abierto, setAbierto] = useState(false)
   const { pathname } = useLocation()
   const boton = useRef<HTMLButtonElement>(null)
+  const caja = useCaja()
+  const conCaja = pathname.startsWith('/vender') || pathname.startsWith('/caja')
   const seccion =
     SECCIONES.find((s) => s.ruta !== '/' && pathname.startsWith(s.ruta)) ??
     SECCIONES.find((s) => s.ruta === pathname)
@@ -31,9 +34,17 @@ export function CabeceraMovil() {
     <>
       <header className="sticky top-0 z-20 flex h-20 items-center gap-3 bg-rosa px-4 lg:hidden">
         <img src="/logo.png" alt="Zuqui's" className="size-[46px] rounded-full" />
-        <p className="min-w-0 flex-1 truncate font-serif text-[30px] leading-none font-semibold">
-          {seccion?.nombre ?? "Zuqui's"}
-        </p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-serif text-[30px] leading-none font-semibold">{seccion?.nombre ?? "Zuqui's"}</p>
+          {conCaja && caja.data && (
+            <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
+              <span aria-hidden className={`size-2 rounded-full ${caja.data.abierta ? 'bg-exito' : 'bg-cafe-suave'}`} />
+              <span className={caja.data.abierta ? 'text-exito-texto' : 'text-cafe-medio'}>
+                {caja.data.abierta ? 'Caja abierta' : 'Caja cerrada'}
+              </span>
+            </p>
+          )}
+        </div>
         <button
           ref={boton}
           type="button"

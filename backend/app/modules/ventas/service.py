@@ -64,6 +64,14 @@ def siguiente_numero(db: Session, sede_id: uuid.UUID, tipo: str) -> int:
     return fila.ultimo
 
 
+def proximo_numero(db: Session, sede_id: uuid.UUID, tipo: str) -> int:
+    """El número que tomará la próxima venta, sin reservarlo (lo muestra el POS)."""
+    ultimo = db.scalar(
+        select(Consecutivo.ultimo).where(Consecutivo.sede_id == sede_id, Consecutivo.tipo == tipo)
+    )
+    return (ultimo or 0) + 1
+
+
 def monto_descuento(base: int, descuento: DescuentoEntrada | None) -> int:
     """Pesos que descuenta sobre `base`, redondeado a peso (ROUND_HALF_UP)."""
     if descuento is None:

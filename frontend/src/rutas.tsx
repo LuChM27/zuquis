@@ -10,6 +10,7 @@ import { NoEncontrada, SeccionPendiente } from './pages/EnConstruccion'
 import { Ingresar } from './pages/Ingresar'
 import { Inventario } from './pages/inventario/Inventario'
 import { Inicio } from './pages/Inicio'
+import { Vender } from './pages/vender/Vender'
 
 /** Pantallas ya construidas; el resto de secciones muestran "llega en la fase N". */
 const PANTALLAS: Record<string, ReactNode> = {
@@ -17,6 +18,7 @@ const PANTALLAS: Record<string, ReactNode> = {
   '/inventario': <Inventario />,
   '/carta': <Carta />,
   '/compras': <Compras />,
+  '/vender': <Vender />,
 }
 
 export const rutas: RouteObject[] = [

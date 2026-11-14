@@ -82,6 +82,7 @@ function montar(permisos: string[]) {
     estado: { tipo: 'autenticado', yo: { usuario: { id: 'u', nombre: 'U', email: 'u@z.co' }, sede: SEDE, sedes: [SEDE], roles: [], permisos } },
     iniciar: async () => {},
     cerrar: async () => {},
+    adoptar: async () => {},
     puede: (p) => permisos.includes(p),
   }
   const router = createMemoryRouter([{ path: '/carta', element: <Carta /> }], { initialEntries: ['/carta'] })

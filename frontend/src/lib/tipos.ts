@@ -387,3 +387,84 @@ export interface Produccion extends VistaPreviaProduccion {
   anulada: boolean
   motivo_anulacion: string | null
 }
+
+// --- Caja y ventas (backend/app/modules/caja y ventas/schemas.py) ---------------------------
+
+export interface SesionCaja {
+  id: string
+  estado: 'abierta' | 'cerrada'
+  abierta_en: string
+  abierta_por: string
+  responsable: string | null
+  base_inicial: number
+  cerrada_en: string | null
+  cerrada_por: string | null
+  observacion: string | null
+}
+
+export interface EstadoCaja {
+  abierta: boolean
+  sesion: SesionCaja | null
+  esperado: { metodo_pago_id: string; metodo: string; es_efectivo: boolean; esperado: number }[]
+}
+
+export type TipoServicio = 'local' | 'llevar' | 'domicilio'
+
+export interface DescuentoEntrada {
+  tipo: 'valor' | 'porcentaje'
+  /** Pesos enteros o porcentaje, como texto ("10", "3000"). */
+  valor: string
+  motivo: string
+}
+
+export interface Autorizacion {
+  email?: string
+  clave?: string
+  usuario_id?: string
+  pin?: string
+}
+
+export interface VentaItem {
+  id: string
+  producto_id: string
+  producto: string
+  cantidad: string
+  precio_unitario: number
+  modificadores: { modificador_id: string; nombre: string; precio: number; costo_total: number }[]
+  bruto: number
+  descuento: number
+  subtotal: number
+  costo_total: number
+  nota: string | null
+}
+
+export interface Venta {
+  id: string
+  numero: number
+  fecha: string
+  caja_sesion_id: string
+  tipo_servicio: TipoServicio
+  cliente_id: string | null
+  items: VentaItem[]
+  subtotal: number
+  descuento_total: number
+  descuento_motivo: string | null
+  descuento_autorizado_por: string | null
+  cortesia: boolean
+  total: number
+  propina: number
+  valor_domicilio: number
+  cobrado: number
+  cambio: number
+  costo_total: number
+  pagos: { metodo_pago_id: string; metodo: string; monto: number; recibido: number | null; cambio: number }[]
+  estado: 'pagada' | 'anulada'
+  cajero: string | null
+  motivo_anulacion: string | null
+  anulada_en: string | null
+}
+
+export interface Cajero {
+  id: string
+  nombre: string
+}

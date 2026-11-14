@@ -283,3 +283,14 @@ def test_venta_de_10_items_en_menos_de_un_segundo(cliente, admin, carta, metodos
     r = vender(cliente, admin, datos)
     assert r.status_code == 201, r.text
     assert time.perf_counter() - inicio < 1.0
+
+
+def test_proximo_numero_se_consulta_sin_consumirlo(cliente, admin, carta, metodos, caja_abierta):
+    """El POS muestra "Venta n.º 0142" antes de cobrar; consultarlo no gasta el número."""
+    r = cliente.get(f"{API}/ventas/proximo-numero", headers=admin)
+    assert r.status_code == 200, r.text
+    numero = r.json()["numero"]
+    assert cliente.get(f"{API}/ventas/proximo-numero", headers=admin).json()["numero"] == numero
+    v = vender(cliente, admin, venta_mockup(carta, metodos)).json()
+    assert v["numero"] == numero
+    assert cliente.get(f"{API}/ventas/proximo-numero", headers=admin).json()["numero"] == numero + 1

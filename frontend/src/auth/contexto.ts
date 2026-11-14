@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { YoSalida } from '../lib/api'
+import type { TokenSalida, YoSalida } from '../lib/api'
 
 export type Estado = { tipo: 'cargando' } | { tipo: 'anonimo' } | { tipo: 'autenticado'; yo: YoSalida }
 
@@ -7,6 +7,8 @@ export interface Sesion {
   estado: Estado
   iniciar: (email: string, password: string, sedeId?: string) => Promise<void>
   cerrar: () => Promise<void>
+  /** Toma la sesión que abrió otro usuario en este equipo (cambio de cajero con PIN). */
+  adoptar: (datos: TokenSalida) => Promise<void>
   puede: (permiso: string) => boolean
 }
 

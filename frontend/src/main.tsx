@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { ProveedorSesion } from './auth/sesion'
 import { ProveedorAvisos } from './components/avisos'
+import { aplicarContraste, contrasteAlto } from './lib/contraste'
 import { rutas } from './rutas'
 import './styles.css'
 
@@ -12,6 +13,7 @@ const clienteQuery = new QueryClient({
 })
 
 const router = createBrowserRouter(rutas)
+aplicarContraste(contrasteAlto())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

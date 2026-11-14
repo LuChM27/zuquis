@@ -58,6 +58,15 @@ def listar_ventas(
     return Pagina(items=items, total=total, page=params.page, size=params.size)
 
 
+@router.get("/ventas/proximo-numero")
+def proximo_numero(
+    ctx: Contexto = Depends(requiere("ventas.crear")), db: Session = Depends(obtener_db)
+) -> dict[str, int]:
+    """Número que tendrá la próxima venta de la sede. Es orientativo: si otro equipo cobra
+    antes, la venta toma el siguiente."""
+    return {"numero": service.proximo_numero(db, ctx.sede_id, "venta")}
+
+
 @router.get("/ventas/{venta_id}", response_model=VentaSalida)
 def ver_venta(
     venta_id: uuid.UUID, ctx: Contexto = Depends(lector_ventas), db: Session = Depends(obtener_db)
