@@ -333,7 +333,7 @@ function FormProducto({
       {guardar.error && <Aviso>{guardar.error}</Aviso>}
       {guardado && !guardar.error && <p role="status" className="text-sm font-semibold text-exito-texto">Cambios guardados.</p>}
       <PieFormulario>
-        <Boton type="submit" disabled={guardar.isPending}>
+        <Boton type="submit" disabled={guardar.isPending || categorias.length === 0}>
           {guardar.isPending ? 'Guardando…' : nuevo ? 'Crear producto' : 'Guardar cambios'}
         </Boton>
       </PieFormulario>
