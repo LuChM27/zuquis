@@ -1,10 +1,13 @@
-import { Navigate, Outlet } from 'react-router'
+import { Navigate, Outlet, useLocation } from 'react-router'
 import { useSesion } from '../auth/contexto'
 import { BarraLateral } from './BarraLateral'
 import { CabeceraMovil } from './CabeceraMovil'
 
 export function AppLayout() {
   const { estado } = useSesion()
+  const { pathname } = useLocation()
+  // El punto de venta ocupa todo el ancho: catálogo y panel de venta de borde a borde (mockup).
+  const completa = pathname.startsWith('/vender')
   if (estado.tipo === 'cargando') return <Cargando />
   if (estado.tipo === 'anonimo') return <Navigate to="/ingresar" replace />
 
@@ -13,7 +16,7 @@ export function AppLayout() {
       <BarraLateral />
       <div className="min-w-0 flex-1">
         <CabeceraMovil />
-        <main className="mx-auto max-w-[1240px] px-4 pt-6 pb-10 lg:px-11 lg:pt-10">
+        <main className={completa ? '' : 'mx-auto max-w-[1240px] px-4 pt-6 pb-10 lg:px-11 lg:pt-10'}>
           <Outlet />
         </main>
       </div>

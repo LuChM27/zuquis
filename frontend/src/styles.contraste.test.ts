@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 
 const css = readFileSync(fileURLToPath(new URL('./styles.css', import.meta.url)), 'utf8')
 const tokens = Object.fromEntries(
-  [...css.matchAll(/--color-([\w-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1], m[2]]),
+  [...css.split(":root[data-contraste")[0].matchAll(/--color-([\w-]+):\s*(#[0-9a-f]{6})/gi)].map((m) => [m[1], m[2]]),
 )
 
 function luminancia(hex: string): number {

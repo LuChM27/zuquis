@@ -84,7 +84,8 @@ class CompraItem(Base, Operativo):
 
 
 class PagoCompra(Base, Operativo):
-    # El vínculo con la sesión de caja (pago desde la caja abierta) llega en la Fase 2.
+    """Pago a un proveedor. Si salió de la caja, queda ligado a la sesión abierta (#28)."""
+
     __tablename__ = "pagos_compra"
     __table_args__ = (CheckConstraint("monto > 0", name="monto_positivo"),)
 
@@ -92,5 +93,6 @@ class PagoCompra(Base, Operativo):
     fecha: Mapped[datetime] = mapped_column(server_default=func.now())
     monto: Mapped[int] = mapped_column(MontoPesos())
     metodo_pago_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("metodos_pago.id"))
+    caja_sesion_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("caja_sesiones.id"))
 
     compra: Mapped[Compra] = relationship(back_populates="pagos")

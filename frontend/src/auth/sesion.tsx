@@ -35,6 +35,16 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     [cargarYo],
   )
 
+  const adoptar = useCallback(
+    async (datos: TokenSalida) => {
+      fijarToken(datos.access_token)
+      // Lo cargado con la sesión anterior (permisos, listas) no debe verse con la nueva.
+      clienteQuery.clear()
+      await cargarYo()
+    },
+    [cargarYo, clienteQuery],
+  )
+
   const cerrar = useCallback(async () => {
     try {
       await api('/auth/logout', { method: 'POST' })
@@ -50,6 +60,9 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     [estado],
   )
 
-  const valor = useMemo(() => ({ estado, iniciar, cerrar, puede }), [estado, iniciar, cerrar, puede])
+  const valor = useMemo(
+    () => ({ estado, iniciar, cerrar, adoptar, puede }),
+    [estado, iniciar, cerrar, adoptar, puede],
+  )
   return <ContextoSesion.Provider value={valor}>{children}</ContextoSesion.Provider>
 }

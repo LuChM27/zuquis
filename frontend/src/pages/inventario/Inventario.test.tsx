@@ -57,6 +57,7 @@ const sesion: Sesion = {
   },
   iniciar: async () => {},
   cerrar: async () => {},
+  adoptar: async () => {},
   puede: () => true,
 }
 

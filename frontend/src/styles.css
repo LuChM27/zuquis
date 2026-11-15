@@ -90,3 +90,20 @@
     animation-duration: 0ms !important;
   }
 }
+
+/*
+ * Modo de alto contraste (RNF-11): para pantallas con mucho reflejo o vista cansada. Oscurece
+ * textos secundarios y bordes; se activa desde el punto de venta y se recuerda en el equipo.
+ */
+:root[data-contraste='alto'] {
+  --color-cafe: #24170f;
+  --color-cafe-medio: #33241b;
+  --color-cafe-suave: #3d2c22;
+  --color-dorado-claro: #9c7a2c;
+  --color-dorado-borde: #7a5d1c;
+  --color-linea: #c9b089;
+  --color-fucsia: #a01f5a;
+  --color-fucsia-oscuro: #7c1544;
+  --color-exito-texto: #145236;
+  --color-peligro-texto: #6f160f;
+}

@@ -1,6 +1,10 @@
-import { LogOut } from 'lucide-react'
+import { LogOut, UsersRound } from 'lucide-react'
+import { useState } from 'react'
 import { NavLink } from 'react-router'
 import { useSesion, useYo } from '../auth/contexto'
+import { hora } from '../lib/formato'
+import { useCaja } from '../pages/caja/usarCaja'
+import { CambiarCajero } from './CambiarCajero'
 import { Marca } from './Marca'
 import { seccionesVisibles } from './navegacion'
 
@@ -34,28 +38,55 @@ export function NavegacionPrincipal({ alElegir }: { alElegir?: () => void }) {
   )
 }
 
-/** Tarjeta inferior de la barra lateral. En la fase 2 muestra además el estado de la caja. */
+/** Tarjeta inferior de la barra lateral: estado de la caja, quién atiende y cambio de cajero. */
 export function TarjetaUsuario() {
   const yo = useYo()
-  const { cerrar } = useSesion()
+  const { cerrar, puede } = useSesion()
+  const caja = useCaja()
+  const [cambiando, setCambiando] = useState(false)
+  const icono =
+    '-m-1.5 grid size-9 shrink-0 place-items-center rounded-control text-cafe-medio hover:bg-crema hover:text-cafe'
   return (
-    <div className="flex items-start justify-between gap-2 rounded-[14px] bg-rosa-suave p-4">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold">{yo.usuario.nombre}</p>
-        <p className="mt-1 truncate text-sm text-cafe-medio">
-          {yo.roles[0] ?? 'Sin rol'}
-          {yo.sedes.length > 1 && ` · ${yo.sede.nombre}`}
+    <div className="rounded-[14px] bg-rosa-suave p-4">
+      {caja.data && (
+        <p className="mb-2 flex items-start gap-2 text-sm font-semibold">
+          <span
+            aria-hidden
+            className={`mt-1.5 size-2 shrink-0 rounded-full ${caja.data.abierta ? 'bg-exito' : 'bg-cafe-suave'}`}
+          />
+          {caja.data.abierta && caja.data.sesion ? (
+            <span className="text-exito-texto">Caja abierta desde {hora(new Date(caja.data.sesion.abierta_en))}</span>
+          ) : (
+            <span className="text-cafe-medio">Caja cerrada</span>
+          )}
         </p>
+      )}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{yo.usuario.nombre}</p>
+          <p className="mt-1 truncate text-sm text-cafe-medio">
+            {yo.roles[0] ?? 'Sin rol'}
+            {yo.sedes.length > 1 && ` · ${yo.sede.nombre}`}
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          {puede('ventas.crear') && (
+            <button
+              type="button"
+              onClick={() => setCambiando(true)}
+              title="Cambiar de cajero"
+              aria-label="Cambiar de cajero"
+              className={icono}
+            >
+              <UsersRound aria-hidden className="size-[18px]" strokeWidth={1.6} />
+            </button>
+          )}
+          <button type="button" onClick={() => void cerrar()} title="Cerrar sesión" aria-label="Cerrar sesión" className={icono}>
+            <LogOut aria-hidden className="size-[18px]" strokeWidth={1.6} />
+          </button>
+        </div>
       </div>
-      <button
-        type="button"
-        onClick={() => void cerrar()}
-        title="Cerrar sesión"
-        aria-label="Cerrar sesión"
-        className="-m-1.5 grid size-9 shrink-0 place-items-center rounded-control text-cafe-medio hover:bg-crema hover:text-cafe"
-      >
-        <LogOut aria-hidden className="size-[18px]" strokeWidth={1.6} />
-      </button>
+      <CambiarCajero abierto={cambiando} alCerrar={() => setCambiando(false)} />
     </div>
   )
 }

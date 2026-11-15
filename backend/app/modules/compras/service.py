@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.deps import Contexto
 from app.modules.auditoria.service import auditar, instantanea
+from app.modules.caja import service as caja
 from app.modules.compras.models import Compra, CompraItem, PagoCompra, Proveedor
 from app.modules.compras.schemas import (
     CompraCrear,
@@ -193,15 +194,18 @@ def crear_compra(db: Session, ctx: Contexto, datos: CompraCrear) -> Compra:
             )
         )
     if metodo and compra.total > 0:
-        db.add(
-            PagoCompra(
-                sede_id=ctx.sede_id,
-                compra_id=compra.id,
-                monto=compra.total,
-                metodo_pago_id=metodo.id,
-                fecha=ahora(),
-            )
+        pago = PagoCompra(
+            id=uuid.uuid4(),
+            sede_id=ctx.sede_id,
+            compra_id=compra.id,
+            monto=compra.total,
+            metodo_pago_id=metodo.id,
+            fecha=ahora(),
         )
+        db.add(pago)
+        db.flush()
+        if datos.desde_caja:
+            _pagar_desde_caja(db, ctx, compra, pago)
     db.flush()
     auditar(
         db,
@@ -216,6 +220,20 @@ def crear_compra(db: Session, ctx: Contexto, datos: CompraCrear) -> Compra:
         },
     )
     return compra
+
+
+def _pagar_desde_caja(db: Session, ctx: Contexto, compra: Compra, pago: PagoCompra) -> None:
+    """El pago sale de la caja abierta: movimiento pago_compra negativo ligado a la compra."""
+    mov = caja.registrar_movimiento(
+        db,
+        ctx,
+        tipo="pago_compra",
+        metodo_pago_id=pago.metodo_pago_id,
+        monto=-pago.monto,
+        referencia_tipo="compra",
+        referencia_id=compra.id,
+    )
+    pago.caja_sesion_id = mov.caja_sesion_id
 
 
 def _pagado(compra: Compra) -> int:
@@ -238,6 +256,7 @@ def registrar_pago(db: Session, ctx: Contexto, compra_id: uuid.UUID, datos: Pago
             status=422,
         )
     pago = PagoCompra(
+        id=uuid.uuid4(),
         sede_id=ctx.sede_id,
         compra_id=compra.id,
         monto=datos.monto,
@@ -246,6 +265,9 @@ def registrar_pago(db: Session, ctx: Contexto, compra_id: uuid.UUID, datos: Pago
     )
     db.add(pago)
     compra.pagos.append(pago)
+    if datos.desde_caja:
+        db.flush()
+        _pagar_desde_caja(db, ctx, compra, pago)
     if datos.monto == saldo:
         compra.estado_pago = "pagada"
     db.flush()
@@ -275,6 +297,8 @@ def anular_compra(db: Session, ctx: Contexto, compra_id: uuid.UUID, motivo: str)
             "Si hubo un error en la cantidad, registra un ajuste de inventario.",
             exc.detalle,
         ) from exc
+    # Lo que salió de la caja vuelve a la caja abierta hoy (RN-03).
+    caja.reversar(db, ctx, "compra", compra.id, f"Anulación de compra: {motivo}")
     compra.anulada = True
     compra.anulada_en = ahora()
     compra.anulada_por = ctx.usuario_id

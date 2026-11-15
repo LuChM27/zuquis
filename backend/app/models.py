@@ -4,6 +4,7 @@ from app.core.idempotencia_models import Idempotencia
 from app.core.modelo import Base
 from app.modules.auditoria.models import Auditoria
 from app.modules.auth.models import SesionRefresh, Usuario
+from app.modules.caja.models import CajaArqueo, CajaMovimiento, CajaSesion
 from app.modules.carta.models import (
     Categoria,
     Modificador,
@@ -15,6 +16,7 @@ from app.modules.carta.models import (
 )
 from app.modules.compras.models import Compra, CompraItem, PagoCompra, Proveedor, proveedor_insumos
 from app.modules.configuracion.models import Configuracion, MetodoPago, Sede, Unidad
+from app.modules.gastos.models import CategoriaGasto, Gasto
 from app.modules.inventario.models import (
     AjusteInventario,
     FaltanteInventario,
@@ -27,16 +29,29 @@ from app.modules.inventario.models import (
 )
 from app.modules.produccion.models import Produccion
 from app.modules.usuarios.models import Permiso, Rol, UsuarioRol, rol_permisos
+from app.modules.ventas.models import (
+    Consecutivo,
+    Venta,
+    VentaItem,
+    VentaItemModificador,
+    VentaPago,
+)
 
 __all__ = [
     "AjusteInventario",
     "Auditoria",
     "Base",
+    "CajaArqueo",
+    "CajaMovimiento",
+    "CajaSesion",
     "Categoria",
+    "CategoriaGasto",
     "Compra",
     "CompraItem",
     "Configuracion",
+    "Consecutivo",
     "FaltanteInventario",
+    "Gasto",
     "Idempotencia",
     "Insumo",
     "Lote",
@@ -59,6 +74,10 @@ __all__ = [
     "Unidad",
     "Usuario",
     "UsuarioRol",
+    "Venta",
+    "VentaItem",
+    "VentaItemModificador",
+    "VentaPago",
     "VerificacionInventario",
     "producto_modificadores",
     "proveedor_insumos",

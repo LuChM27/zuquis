@@ -35,3 +35,18 @@ class YoSalida(BaseModel):
     sedes: list[SedeResumen]
     roles: list[str]
     permisos: list[str]
+
+
+class DefinirPin(BaseModel):
+    clave_actual: str = Field(min_length=1, max_length=200)
+    pin: str = Field(pattern=r"^\d{4,6}$", description="4 a 6 dígitos")
+
+
+class IngresoPin(BaseModel):
+    usuario_id: uuid.UUID
+    pin: str = Field(pattern=r"^\d{4,6}$")
+
+
+class CajeroResumen(BaseModel):
+    id: uuid.UUID
+    nombre: str

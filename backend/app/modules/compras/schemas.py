@@ -61,6 +61,9 @@ class CompraCrear(BaseModel):
     metodo_pago_id: uuid.UUID | None = Field(
         default=None, description="Obligatorio si es de contado"
     )
+    desde_caja: bool = Field(
+        default=False, description="De contado: el pago sale de la caja abierta (pago_compra)"
+    )
     items: list[CompraItemEntrada] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -87,6 +90,7 @@ class CompraItemSalida(BaseModel):
 class PagoEntrada(BaseModel):
     monto: Pesos = Field(gt=0)
     metodo_pago_id: uuid.UUID
+    desde_caja: bool = Field(default=False, description="El pago sale de la caja abierta")
 
 
 class PagoSalida(BaseModel):
