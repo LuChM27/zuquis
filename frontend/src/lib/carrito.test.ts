@@ -1,4 +1,4 @@
-import { agregar, calcular, cambiarCantidad, carritoVacio, pagosPara, type Carrito, type ProductoCarrito } from './carrito'
+import { agregar, alternarRegalo, calcular, cambiarCantidad, carritoVacio, esRegalo, pagosPara, type Carrito, type ProductoCarrito } from './carrito'
 
 const malteada: ProductoCarrito = { id: 'malteada', nombre: 'Malteada de brownie', precio: 16000 }
 const soda: ProductoCarrito = { id: 'soda', nombre: 'Soda frutos rojos', precio: 12000 }
@@ -93,5 +93,26 @@ describe('pago mixto', () => {
       { metodoId: 'nequi', monto: 12000 },
     ])
     expect(pagos[0].monto).toBe(-2000)
+  })
+})
+
+describe('regalo', () => {
+  it('marcar un producto como regalo lo deja en $0 con motivo, y desmarcarlo lo devuelve', () => {
+    let c = agregar(agregar(carritoVacio(), pastel), malteada)
+    const id = c.lineas[0].id
+    c = alternarRegalo(c, id)
+    expect(esRegalo(c.lineas[0])).toBe(true)
+    expect(c.lineas[0].descuento).toEqual({ tipo: 'porcentaje', valor: '100', motivo: 'Regalo' })
+    expect(calcular(c).total).toBe(16000)
+    c = alternarRegalo(c, id)
+    expect(esRegalo(c.lineas[0])).toBe(false)
+    expect(calcular(c).total).toBe(20500)
+  })
+
+  it('un regalo no se mezcla con un producto igual que sí se cobra', () => {
+    let c = agregar(carritoVacio(), pastel)
+    c = alternarRegalo(c, c.lineas[0].id)
+    c = agregar(c, pastel)
+    expect(c.lineas).toHaveLength(2)
   })
 })

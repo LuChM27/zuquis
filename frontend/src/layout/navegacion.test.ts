@@ -3,7 +3,7 @@ import { seccionesVisibles } from './navegacion'
 const nombres = (permisos: string[]) => seccionesVisibles(permisos).map((s) => s.nombre)
 
 describe('secciones visibles por permisos', () => {
-  it('el cajero ve vender, caja, encargos y gastos, sin inicio ni inventario', () => {
+  it('el cajero ve vender, sus ventas, caja, encargos y gastos, sin inicio ni inventario', () => {
     expect(
       nombres([
         'ventas.crear',
@@ -13,7 +13,7 @@ describe('secciones visibles por permisos', () => {
         'gastos.crear_caja',
         'reportes.ver_caja_propia',
       ]),
-    ).toEqual(['Vender', 'Caja', 'Encargos', 'Gastos', 'Reportes'])
+    ).toEqual(['Vender', 'Ventas', 'Caja', 'Encargos', 'Gastos', 'Reportes'])
   })
   it('producción ve inventario, carta (por las recetas) y compras', () => {
     expect(nombres(['inventario.ver', 'compras.crear', 'recetas.editar'])).toEqual(['Inventario', 'Carta', 'Compras'])

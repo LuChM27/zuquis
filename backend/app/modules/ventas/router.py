@@ -10,7 +10,8 @@ from app.core.idempotencia import Idempotencia, idempotencia
 from app.modules.configuracion import service as configuracion
 from app.modules.ventas import comprobante, service
 from app.modules.ventas.descuentos import AutorizacionInvalida, contar_intento_fallido
-from app.modules.ventas.schemas import AnulacionEntrada, VentaCrear, VentaSalida
+from app.modules.ventas.schemas import AnulacionEntrada, ResumenVentas, VentaCrear, VentaSalida
+from app.shared.fechas import hoy
 from app.shared.paginacion import Pagina, ParamsPagina, RangoFechas
 from app.shared.pdf import html_a_pdf
 
@@ -51,10 +52,11 @@ def listar_ventas(
     rango: RangoFechas = Depends(),
     caja_sesion_id: uuid.UUID | None = Query(None),
     estado: Literal["pagada", "anulada"] | None = Query(None),
+    numero: int | None = Query(None, ge=1, description="Número de la venta"),
     ctx: Contexto = Depends(lector_ventas),
     db: Session = Depends(obtener_db),
 ):
-    items, total = service.listar(db, ctx, params, rango, caja_sesion_id, estado)
+    items, total = service.listar(db, ctx, params, rango, caja_sesion_id, estado, numero)
     return Pagina(items=items, total=total, page=params.page, size=params.size)
 
 
@@ -65,6 +67,17 @@ def proximo_numero(
     """Número que tendrá la próxima venta de la sede. Es orientativo: si otro equipo cobra
     antes, la venta toma el siguiente."""
     return {"numero": service.proximo_numero(db, ctx.sede_id, "venta")}
+
+
+@router.get("/ventas/resumen", response_model=ResumenVentas)
+def resumen_ventas(
+    rango: RangoFechas = Depends(),
+    ctx: Contexto = Depends(lector_ventas),
+    db: Session = Depends(obtener_db),
+):
+    """Totales, lo cobrado por método y lo vendido por producto. Por defecto, hoy."""
+    desde = rango.desde or hoy()
+    return service.resumen(db, ctx, desde, rango.hasta or max(desde, hoy()))
 
 
 @router.get("/ventas/{venta_id}", response_model=VentaSalida)

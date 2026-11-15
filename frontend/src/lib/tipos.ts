@@ -552,3 +552,16 @@ export interface Gasto {
   motivo_anulacion: string | null
   creado_en: string
 }
+
+export interface ResumenVentas {
+  desde: string
+  hasta: string
+  ventas: number
+  anuladas: number
+  total: number
+  descuentos: number
+  propinas: number
+  domicilios: number
+  por_metodo: { metodo_pago_id: string; metodo: string; monto: number }[]
+  productos: { producto_id: string; producto: string; cantidad: string; valor: number }[]
+}

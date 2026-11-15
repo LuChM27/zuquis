@@ -13,6 +13,7 @@ import { Ingresar } from './pages/Ingresar'
 import { Inventario } from './pages/inventario/Inventario'
 import { Inicio } from './pages/Inicio'
 import { Vender } from './pages/vender/Vender'
+import { Ventas } from './pages/ventas/Ventas'
 
 /** Pantallas ya construidas; el resto de secciones muestran "llega en la fase N". */
 const PANTALLAS: Record<string, ReactNode> = {
@@ -21,6 +22,7 @@ const PANTALLAS: Record<string, ReactNode> = {
   '/carta': <Carta />,
   '/compras': <Compras />,
   '/vender': <Vender />,
+  '/ventas': <Ventas />,
   '/caja': <Caja />,
   '/gastos': <Gastos />,
 }

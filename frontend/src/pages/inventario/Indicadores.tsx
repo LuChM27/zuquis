@@ -28,7 +28,7 @@ export function Indicadores({ resumen }: { resumen?: ResumenInventario }) {
   )
 }
 
-function Cifra({
+export function Cifra({
   titulo,
   valor,
   detalle,

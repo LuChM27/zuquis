@@ -7,10 +7,10 @@ parte falla (falta inventario, la caja está cerrada, los pagos no cuadran) no q
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, selectinload
 
@@ -36,8 +36,11 @@ from app.modules.ventas.models import (
 from app.modules.ventas.schemas import (
     DescuentoEntrada,
     ItemSalida,
+    MetodoResumen,
     ModificadorSalida,
     PagoSalida,
+    ProductoResumen,
+    ResumenVentas,
     VentaCrear,
     VentaSalida,
 )
@@ -573,8 +576,11 @@ def listar(
     rango: RangoFechas,
     caja_sesion_id: uuid.UUID | None,
     estado: str | None,
+    numero: int | None = None,
 ) -> tuple[list[VentaSalida], int]:
     consulta = select(Venta).where(Venta.sede_id == ctx.sede_id).order_by(Venta.numero.desc())
+    if numero is not None:
+        consulta = consulta.where(Venta.numero == numero)
     if caja_sesion_id:
         consulta = consulta.where(Venta.caja_sesion_id == caja_sesion_id)
     if estado:
@@ -588,3 +594,57 @@ def listar(
         consulta = consulta.where(Venta.fecha < fin)
     filas, total = paginar(db, consulta, params)
     return [salida(db, v) for v in filas], total
+
+
+def resumen(db: Session, ctx: Contexto, desde: date, hasta: date) -> ResumenVentas:
+    """Totales del rango, lo cobrado por método y lo vendido por producto (sin anuladas)."""
+    inicio = datetime.combine(desde, time(), tzinfo=zona())
+    fin = datetime.combine(hasta + timedelta(days=1), time(), tzinfo=zona())
+    del_rango = (Venta.sede_id == ctx.sede_id, Venta.fecha >= inicio, Venta.fecha < fin)
+    pagada = (*del_rango, Venta.estado == "pagada")
+
+    ventas, total, descuentos, propinas, domicilios = db.execute(
+        select(
+            func.count(),
+            func.coalesce(func.sum(Venta.total), 0),
+            func.coalesce(func.sum(Venta.descuento_total), 0),
+            func.coalesce(func.sum(Venta.propina), 0),
+            func.coalesce(func.sum(Venta.valor_domicilio), 0),
+        ).where(*pagada)
+    ).one()
+    anuladas = db.scalar(select(func.count()).where(*del_rango, Venta.estado == "anulada"))
+    por_metodo = db.execute(
+        select(MetodoPago.id, MetodoPago.nombre, func.sum(VentaPago.monto))
+        .join(Venta, Venta.id == VentaPago.venta_id)
+        .join(MetodoPago, MetodoPago.id == VentaPago.metodo_pago_id)
+        .where(*pagada)
+        .group_by(MetodoPago.id, MetodoPago.nombre, MetodoPago.orden)
+        .order_by(MetodoPago.orden, MetodoPago.nombre)
+    ).all()
+    productos = db.execute(
+        select(
+            Producto.id, Producto.nombre, func.sum(VentaItem.cantidad), func.sum(VentaItem.subtotal)
+        )
+        .join(Venta, Venta.id == VentaItem.venta_id)
+        .join(Producto, Producto.id == VentaItem.producto_id)
+        .where(*pagada)
+        .group_by(Producto.id, Producto.nombre)
+        .order_by(func.sum(VentaItem.subtotal).desc(), Producto.nombre)
+    ).all()
+    return ResumenVentas(
+        desde=desde,
+        hasta=hasta,
+        ventas=ventas,
+        anuladas=anuladas or 0,
+        total=int(total),
+        descuentos=int(descuentos),
+        propinas=int(propinas),
+        domicilios=int(domicilios),
+        por_metodo=[
+            MetodoResumen(metodo_pago_id=i, metodo=n, monto=int(m)) for i, n, m in por_metodo
+        ],
+        productos=[
+            ProductoResumen(producto_id=i, producto=n, cantidad=c, valor=int(v))
+            for i, n, c, v in productos
+        ],
+    )

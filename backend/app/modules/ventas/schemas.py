@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -136,3 +136,31 @@ class VentaSalida(BaseModel):
     cajero: str | None
     motivo_anulacion: str | None
     anulada_en: datetime | None
+
+
+class MetodoResumen(BaseModel):
+    metodo_pago_id: uuid.UUID
+    metodo: str
+    monto: int
+
+
+class ProductoResumen(BaseModel):
+    producto_id: uuid.UUID
+    producto: str
+    cantidad: Cantidad
+    valor: int = Field(description="Después del descuento del ítem, antes del de la venta")
+
+
+class ResumenVentas(BaseModel):
+    """Qué se vendió y cómo se cobró en un rango de fechas (por defecto, hoy)."""
+
+    desde: date
+    hasta: date
+    ventas: int
+    anuladas: int
+    total: int
+    descuentos: int
+    propinas: int
+    domicilios: int
+    por_metodo: list[MetodoResumen]
+    productos: list[ProductoResumen]

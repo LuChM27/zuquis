@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { MessageCircle, Printer } from 'lucide-react'
 import { useState } from 'react'
 import { CampoDinero } from '../../components/CampoDinero'
@@ -6,12 +6,12 @@ import { Dialogo } from '../../components/Dialogo'
 import { AreaTexto, Casilla } from '../../components/formulario'
 import { TecladoPin } from '../../components/TecladoPin'
 import { Boton, Campo } from '../../components/ui'
-import { useAvisos } from '../../components/usarAvisos'
-import { api, apiBlob, ErrorApi } from '../../lib/api'
-import { calcular, montoDescuento, type LineaCarrito } from '../../lib/carrito'
+import { api } from '../../lib/api'
+import { calcular, montoDescuento, REGALO, type LineaCarrito } from '../../lib/carrito'
 import { unir } from '../../lib/clases'
 import { pesos } from '../../lib/formato'
 import type { Adicion, Autorizacion, Cajero, DescuentoEntrada, Venta } from '../../lib/tipos'
+import { useComprobante } from './comprobante'
 
 // --- Descuento (por ítem o por venta) -------------------------------------------------------
 
@@ -224,6 +224,15 @@ function FormLinea({
         onChange={(e) => setNota(e.target.value)}
       />
       <div>
+        <Casilla
+          etiqueta="Es un regalo (no se cobra)"
+          ayuda="Sale del inventario y queda registrado como regalo."
+          marcada={conDescuento && borrador.tipo === 'porcentaje' && Number(borrador.valor) === 100}
+          alCambiar={(v) => {
+            setConDescuento(v)
+            setBorrador(v ? borradorDe(REGALO) : borradorDe(null))
+          }}
+        />
         <Casilla etiqueta="Descuento solo a este producto" marcada={conDescuento} alCambiar={setConDescuento} />
         {conDescuento && (
           <div className="mt-2">
@@ -380,53 +389,8 @@ function FormAutorizacion({ alAutorizar, error, ocupado }: { alAutorizar: (a: Au
 
 // --- Venta registrada: cambio, comprobante y compartir --------------------------------------
 
-function textoComprobante(v: Venta): string {
-  const lineas = v.items.map((i) => `${Number(i.cantidad)} × ${i.producto}: ${pesos(i.subtotal)}`)
-  return [
-    `Zuqui's Repostería · Venta n.º ${String(v.numero).padStart(4, '0')}`,
-    ...lineas,
-    v.descuento_total ? `Descuento: −${pesos(v.descuento_total)}` : null,
-    `Total: ${pesos(v.total)}`,
-    v.propina ? `Propina: ${pesos(v.propina)}` : null,
-    v.valor_domicilio ? `Domicilio: ${pesos(v.valor_domicilio)}` : null,
-    '¡Gracias por tu compra!',
-  ]
-    .filter(Boolean)
-    .join('\n')
-}
-
 export function VentaRegistrada({ venta, alCerrar }: { venta: Venta | null; alCerrar: () => void }) {
-  const { avisar } = useAvisos()
-  const pdf = useMutation({
-    mutationFn: async () => apiBlob(`/ventas/${venta!.id}/comprobante`),
-    onError: (e) => avisar(e instanceof ErrorApi ? e.message : 'No se pudo generar el comprobante.', 'error'),
-  })
-
-  async function imprimir() {
-    const blob = await pdf.mutateAsync().catch(() => null)
-    if (!blob) return
-    const url = URL.createObjectURL(blob)
-    window.open(url, '_blank', 'noopener')
-    setTimeout(() => URL.revokeObjectURL(url), 60_000)
-  }
-
-  async function compartir() {
-    const v = venta!
-    const texto = textoComprobante(v)
-    const blob = await pdf.mutateAsync().catch(() => null)
-    const archivo = blob ? new File([blob], `venta-${v.numero}.pdf`, { type: 'application/pdf' }) : null
-    // En el celular se comparte el PDF (WhatsApp lo ofrece); si no se puede, va el texto.
-    if (archivo && navigator.canShare?.({ files: [archivo] })) {
-      try {
-        await navigator.share({ files: [archivo], text: texto })
-        return
-      } catch {
-        return
-      }
-    }
-    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener')
-  }
-
+  const { imprimir, compartir, ocupado } = useComprobante(venta)
   const numero = venta ? String(venta.numero).padStart(4, '0') : ''
   return (
     <Dialogo abierto={venta !== null} alCerrar={alCerrar} titulo={`Venta n.º ${numero}`} rotulo="Venta registrada">
@@ -451,11 +415,11 @@ export function VentaRegistrada({ venta, alCerrar }: { venta: Venta | null; alCe
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            <Boton variante="secundario" onClick={() => void imprimir()} disabled={pdf.isPending}>
+            <Boton variante="secundario" onClick={() => void imprimir()} disabled={ocupado}>
               <Printer aria-hidden className="size-5" strokeWidth={1.7} />
               Imprimir
             </Boton>
-            <Boton variante="secundario" onClick={() => void compartir()} disabled={pdf.isPending}>
+            <Boton variante="secundario" onClick={() => void compartir()} disabled={ocupado}>
               <MessageCircle aria-hidden className="size-5" strokeWidth={1.7} />
               Compartir
             </Boton>

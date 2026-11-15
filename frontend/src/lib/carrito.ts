@@ -69,6 +69,20 @@ export function editarLinea(c: Carrito, lineaId: string, cambios: Partial<Omit<L
   return { ...c, lineas: c.lineas.map((l) => (l.id === lineaId ? { ...l, ...cambios } : l)) }
 }
 
+/** Regalo: descuento del 100 % del producto con motivo "Regalo" (la venta sigue descontando inventario). */
+export const REGALO: DescuentoEntrada = { tipo: 'porcentaje', valor: '100', motivo: 'Regalo' }
+
+export function esRegalo(l: LineaCarrito): boolean {
+  return l.descuento?.tipo === 'porcentaje' && Number(l.descuento.valor) === 100
+}
+
+export function alternarRegalo(c: Carrito, lineaId: string): Carrito {
+  return {
+    ...c,
+    lineas: c.lineas.map((l) => (l.id === lineaId ? { ...l, descuento: esRegalo(l) ? null : REGALO } : l)),
+  }
+}
+
 export function quitarLinea(c: Carrito, lineaId: string): Carrito {
   return { ...c, lineas: c.lineas.filter((l) => l.id !== lineaId) }
 }

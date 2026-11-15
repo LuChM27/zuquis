@@ -1,7 +1,7 @@
-import { Minus, Plus } from 'lucide-react'
+import { Gift, Minus, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CampoDinero } from '../../components/CampoDinero'
-import { calcular, pagosPara, type Carrito } from '../../lib/carrito'
+import { alternarRegalo, calcular, esRegalo, pagosPara, quitarLinea, type Carrito } from '../../lib/carrito'
 import { unir } from '../../lib/clases'
 import { hora, pesos } from '../../lib/formato'
 import type { MetodoPago, TipoServicio } from '../../lib/tipos'
@@ -116,35 +116,64 @@ export function PanelVenta({
           {carrito.lineas.map((l, i) => {
             const tl = t.lineas[i]
             const detalle = [...l.adiciones.map((a) => `+ ${a.nombre}`), l.nota].filter(Boolean).join(' · ')
+            const regalo = esRegalo(l)
             return (
-              <li key={l.id} aria-label={l.producto.nombre} className="flex items-center gap-3 border-b border-linea py-4">
-                <button type="button" onClick={() => alEditarLinea(l.id)} className="min-w-0 flex-1 text-left" title="Adiciones, nota o descuento">
-                  <span className="block text-[16px] leading-snug font-semibold [overflow-wrap:anywhere]">{l.producto.nombre}</span>
-                  {detalle && <span className="mt-0.5 block text-sm text-cafe-suave">{detalle}</span>}
-                  {tl.descuento > 0 && <span className="mt-0.5 block text-sm text-peligro-texto">Descuento −{pesos(tl.descuento)}</span>}
-                </button>
-                <div className="flex shrink-0 items-center gap-2">
-                  <button
-                    type="button"
-                    aria-label={`Quitar una unidad de ${l.producto.nombre}`}
-                    onClick={() => alCambiar({ ...carrito, lineas: carrito.lineas.map((x) => (x.id === l.id ? { ...x, cantidad: x.cantidad - 1 } : x)).filter((x) => x.cantidad > 0) })}
-                    className="grid size-11 place-items-center rounded-control border border-dorado-claro bg-crema hover:border-dorado-borde"
-                  >
-                    <Minus aria-hidden className="size-4" strokeWidth={1.8} />
+              <li key={l.id} aria-label={l.producto.nombre} className="border-b border-linea py-3">
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => alEditarLinea(l.id)} className="min-w-0 flex-1 text-left" title="Adiciones, nota o descuento">
+                    <span className="block text-[16px] leading-snug font-semibold [overflow-wrap:anywhere]">{l.producto.nombre}</span>
+                    {detalle && <span className="mt-0.5 block text-sm text-cafe-suave">{detalle}</span>}
+                    {!regalo && tl.descuento > 0 && (
+                      <span className="mt-0.5 block text-sm text-peligro-texto">Descuento −{pesos(tl.descuento)}</span>
+                    )}
                   </button>
-                  <span className="w-6 text-center text-[17px] font-semibold" aria-label={`Cantidad: ${l.cantidad}`}>
-                    {l.cantidad}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      aria-label={`Quitar una unidad de ${l.producto.nombre}`}
+                      onClick={() => alCambiar({ ...carrito, lineas: carrito.lineas.map((x) => (x.id === l.id ? { ...x, cantidad: x.cantidad - 1 } : x)).filter((x) => x.cantidad > 0) })}
+                      className="grid size-11 place-items-center rounded-control border border-dorado-claro bg-crema hover:border-dorado-borde"
+                    >
+                      <Minus aria-hidden className="size-4" strokeWidth={1.8} />
+                    </button>
+                    <span className="w-6 text-center text-[17px] font-semibold" aria-label={`Cantidad: ${l.cantidad}`}>
+                      {l.cantidad}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Agregar una unidad de ${l.producto.nombre}`}
+                      onClick={() => alCambiar({ ...carrito, lineas: carrito.lineas.map((x) => (x.id === l.id ? { ...x, cantidad: x.cantidad + 1 } : x)) })}
+                      className="grid size-11 place-items-center rounded-control border border-dorado-claro bg-crema hover:border-dorado-borde"
+                    >
+                      <Plus aria-hidden className="size-4" strokeWidth={1.8} />
+                    </button>
+                  </div>
+                  <span className="w-[76px] shrink-0 text-right text-[17px] font-semibold">{pesos(tl.neto)}</span>
+                </div>
+                <div className="-ml-2 flex gap-1">
                   <button
                     type="button"
-                    aria-label={`Agregar una unidad de ${l.producto.nombre}`}
-                    onClick={() => alCambiar({ ...carrito, lineas: carrito.lineas.map((x) => (x.id === l.id ? { ...x, cantidad: x.cantidad + 1 } : x)) })}
-                    className="grid size-11 place-items-center rounded-control border border-dorado-claro bg-crema hover:border-dorado-borde"
+                    aria-pressed={regalo}
+                    aria-label={`${l.producto.nombre} es regalo`}
+                    onClick={() => alCambiar(alternarRegalo(carrito, l.id))}
+                    className={unir(
+                      'flex h-9 items-center gap-1.5 rounded-control px-2 text-sm font-semibold',
+                      regalo ? 'bg-rosa-suave text-fucsia-oscuro' : 'text-cafe-medio hover:bg-crema hover:text-cafe',
+                    )}
                   >
-                    <Plus aria-hidden className="size-4" strokeWidth={1.8} />
+                    <Gift aria-hidden className="size-4" strokeWidth={1.8} />
+                    {regalo ? 'Es regalo' : 'Regalo'}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Quitar ${l.producto.nombre} de la venta`}
+                    onClick={() => alCambiar(quitarLinea(carrito, l.id))}
+                    className="flex h-9 items-center gap-1.5 rounded-control px-2 text-sm font-semibold text-cafe-medio hover:bg-peligro-fondo hover:text-peligro-texto"
+                  >
+                    <Trash2 aria-hidden className="size-4" strokeWidth={1.8} />
+                    Quitar
                   </button>
                 </div>
-                <span className="w-[76px] shrink-0 text-right text-[17px] font-semibold">{pesos(tl.neto)}</span>
               </li>
             )
           })}

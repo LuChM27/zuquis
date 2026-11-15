@@ -5,6 +5,7 @@ import {
   ChartColumn,
   House,
   ReceiptText,
+  ScrollText,
   ShoppingCart,
   SlidersHorizontal,
   Truck,
@@ -26,6 +27,14 @@ export interface Seccion {
 export const SECCIONES: Seccion[] = [
   { ruta: '/', nombre: 'Inicio', icono: House, permisos: ['reportes.ver'], fase: 4 },
   { ruta: '/vender', nombre: 'Vender', icono: ShoppingCart, permisos: ['ventas.crear'], fase: 2 },
+  // Las ventas registradas no están en la barra de los mockups; se agregó aquí (decisión del 15/11/2026).
+  {
+    ruta: '/ventas',
+    nombre: 'Ventas',
+    icono: ScrollText,
+    permisos: ['ventas.crear', 'ventas.anular', 'reportes.ver'],
+    fase: 2,
+  },
   {
     ruta: '/caja',
     nombre: 'Caja',
