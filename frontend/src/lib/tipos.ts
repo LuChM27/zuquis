@@ -468,3 +468,87 @@ export interface Cajero {
   id: string
   nombre: string
 }
+
+export interface MovimientoCaja {
+  id: string
+  caja_sesion_id: string
+  tipo: string
+  metodo_pago_id: string
+  metodo: string | null
+  monto: number
+  referencia_tipo: string | null
+  referencia_id: string | null
+  motivo: string | null
+  usuario: string | null
+  fecha: string
+}
+
+export interface Arqueo {
+  metodo_pago_id: string
+  metodo: string
+  es_efectivo: boolean
+  esperado: number
+  contado: number | null
+  diferencia: number | null
+}
+
+export interface ResumenTurno {
+  ventas: number
+  abonos: number
+  propinas: number
+  gastos: number
+  domicilios_entregados: number
+  pagos_proveedores: number
+  anulaciones: number
+}
+
+export interface VistaCierre {
+  sesion: SesionCaja
+  arqueo: Arqueo[]
+  efectivo: { concepto: string; monto: number }[]
+  efectivo_esperado: number
+  resumen: ResumenTurno
+  domicilios_sin_liquidar: number
+}
+
+export interface SesionResumen extends SesionCaja {
+  efectivo_esperado: number
+  diferencia_total: number | null
+}
+
+export interface SesionDetalle extends SesionResumen {
+  arqueos: Arqueo[]
+  efectivo: { concepto: string; monto: number }[]
+  resumen: ResumenTurno
+}
+
+// --- Gastos (backend/app/modules/gastos/schemas.py) -----------------------------------------
+
+export type FuenteGasto = 'caja' | 'banco' | 'duenos'
+
+export interface CategoriaGasto {
+  id: string
+  nombre: string
+  cuenta_puc: string | null
+  activa: boolean
+}
+
+export interface Gasto {
+  id: string
+  fecha: string
+  categoria_id: string
+  categoria: string | null
+  cuenta_puc: string | null
+  descripcion: string
+  monto: number
+  metodo_pago_id: string
+  metodo: string | null
+  fuente: FuenteGasto
+  caja_sesion_id: string | null
+  proveedor_id: string | null
+  soporte_url: string | null
+  estado: 'registrado' | 'anulado'
+  usuario: string | null
+  motivo_anulacion: string | null
+  creado_en: string
+}

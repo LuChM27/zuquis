@@ -3,9 +3,11 @@ import type { RouteObject } from 'react-router'
 import { RequierePermiso } from './auth/RequierePermiso'
 import { AppLayout } from './layout/AppLayout'
 import { SECCIONES } from './layout/navegacion'
+import { Caja } from './pages/caja/Caja'
 import { Carta } from './pages/carta/Carta'
 import { Compras } from './pages/compras/Compras'
 import { Configuracion } from './pages/configuracion/Configuracion'
+import { Gastos } from './pages/gastos/Gastos'
 import { NoEncontrada, SeccionPendiente } from './pages/EnConstruccion'
 import { Ingresar } from './pages/Ingresar'
 import { Inventario } from './pages/inventario/Inventario'
@@ -19,6 +21,8 @@ const PANTALLAS: Record<string, ReactNode> = {
   '/carta': <Carta />,
   '/compras': <Compras />,
   '/vender': <Vender />,
+  '/caja': <Caja />,
+  '/gastos': <Gastos />,
 }
 
 export const rutas: RouteObject[] = [

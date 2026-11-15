@@ -14,6 +14,8 @@ import type { Compra, Insumo, MetodoPago, Proveedor } from '../../lib/tipos'
 import { cantidadLegible, costoPorUnidad, hoyIso } from '../../lib/unidades'
 import { mensajeDeError } from '../configuracion/acciones'
 import { leerCantidad } from '../inventario/comun'
+import { SaleDeCaja } from '../caja/SaleDeCaja'
+import { useCaja, usarDesdeCaja } from '../caja/usarCaja'
 
 interface Linea {
   clave: number
@@ -47,6 +49,13 @@ export function NuevaCompra({ alRegistrar }: { alRegistrar: (c: Compra) => void 
   const [clave, setClave] = useState(() => crypto.randomUUID())
   const archivo = useRef<HTMLInputElement>(null)
   const metodoId = metodoElegido || metodos.data?.find((m) => m.es_efectivo)?.id || metodos.data?.[0]?.id || ''
+  const caja = useCaja()
+  const [desdeCajaElegido, setDesdeCaja] = useState<boolean | null>(null)
+  const desdeCaja = usarDesdeCaja(
+    desdeCajaElegido,
+    !!metodos.data?.find((m) => m.id === metodoId)?.es_efectivo,
+    caja.data?.abierta ?? false,
+  )
 
   const porId = new Map((insumos.data ?? []).map((i) => [i.id, i]))
   const proveedor = proveedores.data?.find((p) => p.id === proveedorId)
@@ -116,6 +125,7 @@ export function NuevaCompra({ alRegistrar }: { alRegistrar: (c: Compra) => void 
           soporte_url: soporte,
           estado_pago: estado,
           metodo_pago_id: estado === 'contado' ? metodoId : null,
+          desde_caja: estado === 'contado' && desdeCaja,
           items: usadas.map((l) => ({
             insumo_id: l.insumo_id,
             presentacion_id: l.presentacion_id || null,
@@ -302,6 +312,7 @@ export function NuevaCompra({ alRegistrar }: { alRegistrar: (c: Compra) => void 
                 ))}
               </Selector>
             )}
+            {estado === 'contado' && <SaleDeCaja activo={desdeCaja} alCambiar={setDesdeCaja} />}
             <div>
               <p className="mb-1.5 text-sm font-semibold">Soporte (foto de la factura)</p>
               <input

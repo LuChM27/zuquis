@@ -14,6 +14,8 @@ import { cantidadLegible, costoPorUnidad, fechaDiaMes, fechaIso, hoyIso } from '
 import { mensajeDeError } from '../configuracion/acciones'
 import { TarjetaLista } from '../configuracion/comun'
 import { useImagen } from '../carta/utilidades'
+import { SaleDeCaja } from '../caja/SaleDeCaja'
+import { useCaja, usarDesdeCaja } from '../caja/usarCaja'
 
 const TAMANO = 50
 
@@ -210,6 +212,13 @@ function FormPago({ compra }: { compra: Compra }) {
   const [enviando, setEnviando] = useState(false)
   const [clave, setClave] = useState(() => crypto.randomUUID())
   const metodoId = metodoElegido || metodos.data?.find((m) => m.es_efectivo)?.id || metodos.data?.[0]?.id || ''
+  const caja = useCaja()
+  const [desdeCajaElegido, setDesdeCaja] = useState<boolean | null>(null)
+  const desdeCaja = usarDesdeCaja(
+    desdeCajaElegido,
+    !!metodos.data?.find((m) => m.id === metodoId)?.es_efectivo,
+    caja.data?.abierta ?? false,
+  )
 
   async function enviar(ev: FormEvent) {
     ev.preventDefault()
@@ -221,9 +230,12 @@ function FormPago({ compra }: { compra: Compra }) {
       const c = await api<Compra>(`/compras/${compra.id}/pagos`, {
         method: 'POST',
         idempotencia: clave,
-        json: { monto, metodo_pago_id: metodoId },
+        json: { monto, metodo_pago_id: metodoId, desde_caja: desdeCaja },
       })
-      await cliente.invalidateQueries({ queryKey: ['compras'] })
+      await Promise.all([
+        cliente.invalidateQueries({ queryKey: ['compras'] }),
+        cliente.invalidateQueries({ queryKey: ['caja'] }),
+      ])
       avisar(c.saldo === 0 ? `Compra pagada por completo.` : `Pago registrado. Queda un saldo de ${pesos(c.saldo)}.`)
       setClave(crypto.randomUUID())
       setMonto(c.saldo)
@@ -245,6 +257,7 @@ function FormPago({ compra }: { compra: Compra }) {
           </option>
         ))}
       </Selector>
+      <SaleDeCaja activo={desdeCaja} alCambiar={setDesdeCaja} />
       {error && <Aviso>{error}</Aviso>}
       <Boton type="submit" disabled={enviando}>
         {enviando ? 'Registrando…' : 'Registrar pago'}

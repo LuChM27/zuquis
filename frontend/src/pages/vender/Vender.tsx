@@ -3,8 +3,7 @@ import { ArrowLeft, Contrast } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useSesion } from '../../auth/contexto'
-import { CampoDinero } from '../../components/CampoDinero'
-import { Boton, Tarjeta, TituloTarjeta } from '../../components/ui'
+import { Tarjeta, TituloTarjeta } from '../../components/ui'
 import { useAvisos } from '../../components/usarAvisos'
 import { api, ErrorApi } from '../../lib/api'
 import { agregar, calcular, carritoVacio, cuerpoVenta, editarLinea, pagosPara, quitarLinea, type Carrito } from '../../lib/carrito'
@@ -12,6 +11,7 @@ import { unir } from '../../lib/clases'
 import { aplicarContraste, contrasteAlto } from '../../lib/contraste'
 import { pesos } from '../../lib/formato'
 import type { Autorizacion, Categoria, MetodoPago, Producto, Venta } from '../../lib/tipos'
+import { FormAbrirCaja } from '../caja/AbrirCaja'
 import { useCaja } from '../caja/usarCaja'
 import { Catalogo } from './Catalogo'
 import { DialogoAutorizacion, DialogoDescuento, DialogoLinea, DialogoPropina, VentaRegistrada } from './Dialogos'
@@ -290,38 +290,15 @@ function HojaVenta({ alCerrar, children }: { alCerrar: () => void; children: Rea
 /** Sin caja abierta no se vende (RN-02): se abre aquí mismo si se tiene permiso. */
 function CajaCerrada() {
   const { puede } = useSesion()
-  const { avisar } = useAvisos()
-  const clienteQuery = useQueryClient()
-  const [base, setBase] = useState<number | null>(null)
-  const abrir = useMutation({
-    mutationFn: () => api('/caja/abrir', { method: 'POST', json: { base_inicial: base ?? 0 } }),
-    onSuccess: () => {
-      avisar('Caja abierta. ¡A vender!')
-      void clienteQuery.invalidateQueries({ queryKey: ['caja'] })
-    },
-    onError: (e) => {
-      avisar(e.message, 'error')
-      void clienteQuery.invalidateQueries({ queryKey: ['caja'] })
-    },
-  })
   return (
     <div className="grid min-h-[70dvh] place-items-center px-4 py-10">
       <Tarjeta className="w-full max-w-[440px] p-7">
         <TituloTarjeta>La caja está cerrada</TituloTarjeta>
         {puede('caja.abrir') ? (
-          <form
-            className="mt-4 grid gap-4"
-            onSubmit={(e) => {
-              e.preventDefault()
-              abrir.mutate()
-            }}
-          >
+          <div className="mt-4 grid gap-4">
             <p className="text-cafe-medio">Para vender, primero abre la caja con el efectivo con el que arranca el turno.</p>
-            <CampoDinero etiqueta="Base inicial en efectivo" valor={base} alCambiar={setBase} />
-            <Boton type="submit" disabled={base === null || abrir.isPending}>
-              Abrir caja
-            </Boton>
-          </form>
+            <FormAbrirCaja />
+          </div>
         ) : (
           <p className="mt-4 text-cafe-medio">
             Para vender hace falta una caja abierta. Pide a quien abre la caja que la abra

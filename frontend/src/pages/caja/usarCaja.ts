@@ -16,3 +16,8 @@ export function useCaja() {
     refetchInterval: 60_000,
   })
 }
+
+/** Por defecto, un pago en efectivo sale de la caja si está abierta; se puede cambiar. */
+export function usarDesdeCaja(elegido: boolean | null, esEfectivo: boolean, cajaAbierta: boolean): boolean {
+  return cajaAbierta && (elegido ?? esEfectivo)
+}
