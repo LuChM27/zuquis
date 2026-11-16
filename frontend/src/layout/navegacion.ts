@@ -42,7 +42,14 @@ export const SECCIONES: Seccion[] = [
     permisos: ['caja.abrir', 'caja.cerrar', 'caja.movimientos'],
     fase: 2,
   },
-  { ruta: '/encargos', nombre: 'Encargos', icono: Calendar, permisos: ['encargos.crear'], fase: 3 },
+  // Encargos incluye los domicilios del día y los clientes.
+  {
+    ruta: '/encargos',
+    nombre: 'Encargos',
+    icono: Calendar,
+    permisos: ['encargos.crear', 'encargos.devolver_abono', 'clientes.gestionar'],
+    fase: 3,
+  },
   { ruta: '/inventario', nombre: 'Inventario', icono: Box, permisos: ['inventario.ver'], fase: 1 },
   // La carta no está en la barra de los mockups; se agregó aquí (decisión del 13/11/2026).
   {

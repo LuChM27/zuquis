@@ -27,7 +27,7 @@ export function Ventas() {
   const [params, setParams] = useSearchParams()
   const dia = params.get('dia') ?? hoyIso()
   const elegida = params.get('venta') ?? undefined
-  const [numero, setNumero] = useState('')
+  const [numero, setNumero] = useState(() => params.get('numero') ?? '')
   const fijar = (cambios: Record<string, string | null>) => {
     const siguiente = new URLSearchParams(params)
     for (const [k, v] of Object.entries(cambios)) {
@@ -266,7 +266,15 @@ function DetalleVenta({ venta }: { venta: Venta }) {
     <PanelDetalle
       rotulo={anulada ? 'Venta anulada' : 'Venta'}
       titulo={`Venta ${numeroVenta(venta.numero)}`}
-      subtitulo={`${fechaConDia(fecha)} · ${hora(fecha)} · ${SERVICIO[venta.tipo_servicio] ?? venta.tipo_servicio}${venta.cajero ? ` · ${venta.cajero}` : ''}`}
+      subtitulo={[
+        `${fechaConDia(fecha)} · ${hora(fecha)}`,
+        SERVICIO[venta.tipo_servicio] ?? venta.tipo_servicio,
+        venta.cliente,
+        venta.encargo_numero ? `Encargo n.º ${String(venta.encargo_numero).padStart(4, '0')}` : null,
+        venta.cajero,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
     >
       {anulada && (
         <div className="mb-4">
@@ -330,6 +338,12 @@ function DetalleVenta({ venta }: { venta: Venta }) {
           <div className={fila}>
             <dt className="text-cafe-medio">Domicilio</dt>
             <dd>{pesos(venta.valor_domicilio)}</dd>
+          </div>
+        )}
+        {(venta.abonos_aplicados ?? 0) > 0 && (
+          <div className={fila}>
+            <dt className="text-cafe-medio">Abonos ya recibidos</dt>
+            <dd>−{pesos(venta.abonos_aplicados ?? 0)}</dd>
           </div>
         )}
       </dl>

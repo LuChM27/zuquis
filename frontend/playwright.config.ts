@@ -14,7 +14,9 @@ export default defineConfig({
   reporter: enCI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:4173',
-    trace: 'retain-on-failure',
+    // Sin capturas en la traza: con Chrome 157 la grabación de pantalla deja los campos sin poder
+    // llenarse. Las instantáneas del DOM siguen sirviendo para revisar un fallo.
+    trace: { mode: 'retain-on-failure', screenshots: false },
     locale: 'es-CO',
     timezoneId: 'America/Bogota',
   },

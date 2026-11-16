@@ -7,7 +7,7 @@ import { AreaTexto, Casilla } from '../../components/formulario'
 import { TecladoPin } from '../../components/TecladoPin'
 import { Boton, Campo } from '../../components/ui'
 import { api } from '../../lib/api'
-import { calcular, montoDescuento, REGALO, type LineaCarrito } from '../../lib/carrito'
+import { calcular, carritoVacio, montoDescuento, REGALO, type LineaCarrito } from '../../lib/carrito'
 import { unir } from '../../lib/clases'
 import { pesos } from '../../lib/formato'
 import type { Adicion, Autorizacion, Cajero, DescuentoEntrada, Venta } from '../../lib/tipos'
@@ -175,13 +175,7 @@ function FormLinea({
 
   const lista = adiciones.filter((a) => a.activo).map((a) => ({ id: a.id, nombre: a.nombre, precio: a.precio }))
   const nuevas = lista.filter((a) => elegidas.has(a.id))
-  const bruto = calcular({
-    tipoServicio: 'local',
-    lineas: [{ ...linea, adiciones: nuevas, descuento: null }],
-    descuento: null,
-    propina: 0,
-    valorDomicilio: 0,
-  }).subtotal
+  const bruto = calcular({ ...carritoVacio(), lineas: [{ ...linea, adiciones: nuevas, descuento: null }] }).subtotal
   const leido = conDescuento ? leerDescuento(borrador, bruto) : null
 
   return (

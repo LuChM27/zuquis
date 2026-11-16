@@ -1,4 +1,4 @@
-import { agregar, alternarRegalo, calcular, cambiarCantidad, carritoVacio, esRegalo, pagosPara, type Carrito, type ProductoCarrito } from './carrito'
+import { agregar, alternarRegalo, calcular, cambiarCantidad, carritoVacio, cuerpoVenta, esRegalo, pagosPara, type Carrito, type ProductoCarrito } from './carrito'
 
 const malteada: ProductoCarrito = { id: 'malteada', nombre: 'Malteada de brownie', precio: 16000 }
 const soda: ProductoCarrito = { id: 'soda', nombre: 'Soda frutos rojos', precio: 12000 }
@@ -114,5 +114,28 @@ describe('regalo', () => {
     c = alternarRegalo(c, c.lineas[0].id)
     c = agregar(c, pastel)
     expect(c.lineas).toHaveLength(2)
+  })
+})
+
+describe('venta a domicilio', () => {
+  it('envía el cliente y los datos de la entrega solo si es a domicilio', () => {
+    const c: Carrito = {
+      ...agregar(carritoVacio('domicilio'), pastel),
+      valorDomicilio: 4000,
+      entrega: { clienteId: 'cli', domiciliarioId: 'dom', direccion: ' Cra 10 # 5-20 ', telefono: '300 123 4567' },
+    }
+    const cuerpo = cuerpoVenta(c, [{ metodoId: 'ef', monto: 8500 }])
+    expect(cuerpo.cliente_id).toBe('cli')
+    expect(cuerpo.domicilio).toEqual({ domiciliario_id: 'dom', direccion: 'Cra 10 # 5-20', telefono: '300 123 4567' })
+    expect(cuerpo.valor_domicilio).toBe(4000)
+
+    const enLocal = cuerpoVenta({ ...c, tipoServicio: 'local' }, [{ metodoId: 'ef', monto: 4500 }])
+    expect(enLocal.domicilio).toBeNull()
+    expect(enLocal.valor_domicilio).toBe(0)
+    expect(enLocal.cliente_id).toBe('cli')
+  })
+
+  it('sin cliente no se envía cliente_id', () => {
+    expect(cuerpoVenta(agregar(carritoVacio(), pastel), []).cliente_id).toBeNull()
   })
 })

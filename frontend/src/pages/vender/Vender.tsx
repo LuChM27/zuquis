@@ -10,6 +10,7 @@ import { agregar, calcular, carritoVacio, cuerpoVenta, editarLinea, pagosPara, q
 import { unir } from '../../lib/clases'
 import { aplicarContraste, contrasteAlto } from '../../lib/contraste'
 import { pesos } from '../../lib/formato'
+import { useClaveIdempotencia } from '../../lib/idempotencia'
 import type { Autorizacion, Categoria, MetodoPago, Producto, Venta } from '../../lib/tipos'
 import { FormAbrirCaja } from '../caja/AbrirCaja'
 import { useCaja } from '../caja/usarCaja'
@@ -32,25 +33,6 @@ function useEscritorio(): boolean {
     return () => m.removeEventListener('change', alCambiar)
   }, [])
   return es
-}
-
-/**
- * Clave de idempotencia por contenido: el mismo cuerpo reintenta con la misma clave (si la
- * primera petición sí llegó, el backend devuelve esa venta sin duplicarla); un cuerpo distinto
- * es otra venta y lleva clave nueva.
- */
-function useClaveIdempotencia() {
-  const ultima = useRef<{ cuerpo: string; clave: string } | null>(null)
-  return {
-    para(cuerpo: unknown): string {
-      const texto = JSON.stringify(cuerpo)
-      if (ultima.current?.cuerpo !== texto) ultima.current = { cuerpo: texto, clave: crypto.randomUUID() }
-      return ultima.current.clave
-    },
-    olvidar() {
-      ultima.current = null
-    },
-  }
 }
 
 export function Vender() {

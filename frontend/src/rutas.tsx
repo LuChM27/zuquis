@@ -7,6 +7,7 @@ import { Caja } from './pages/caja/Caja'
 import { Carta } from './pages/carta/Carta'
 import { Compras } from './pages/compras/Compras'
 import { Configuracion } from './pages/configuracion/Configuracion'
+import { Encargos } from './pages/encargos/Encargos'
 import { Gastos } from './pages/gastos/Gastos'
 import { NoEncontrada, SeccionPendiente } from './pages/EnConstruccion'
 import { Ingresar } from './pages/Ingresar'
@@ -25,6 +26,7 @@ const PANTALLAS: Record<string, ReactNode> = {
   '/ventas': <Ventas />,
   '/caja': <Caja />,
   '/gastos': <Gastos />,
+  '/encargos': <Encargos />,
 }
 
 export const rutas: RouteObject[] = [

@@ -62,3 +62,16 @@ describe('qué falta para cobrar', () => {
     expect(motivoNoCobrar(cortesia, { elegidos: [], recibido: null }, metodos)).toBeNull()
   })
 })
+
+describe('venta a domicilio', () => {
+  const carrito = agregar(carritoVacio('domicilio'), { id: 'p', nombre: 'Pastel', precio: 4500, tipo: 'lote' } as never)
+  const pago = { elegidos: [{ metodoId: 'ef', monto: null }], recibido: null }
+
+  it('exige domiciliario y dirección', () => {
+    expect(motivoNoCobrar(carrito, pago, metodos)).toBe('Elige quién lleva el domicilio.')
+    const conDomiciliario = { ...carrito, entrega: { ...carrito.entrega, domiciliarioId: 'dom' } }
+    expect(motivoNoCobrar(conDomiciliario, pago, metodos)).toBe('Escribe la dirección de entrega.')
+    const completo = { ...conDomiciliario, entrega: { ...conDomiciliario.entrega, direccion: 'Cra 10' } }
+    expect(motivoNoCobrar(completo, pago, metodos)).toBeNull()
+  })
+})
