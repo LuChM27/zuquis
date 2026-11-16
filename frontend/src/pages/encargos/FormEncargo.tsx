@@ -24,15 +24,29 @@ interface Item {
   descripcion: string
   cantidad: string
   precio: number | null
+  decorar: boolean
+  decoracion: string
+  decoracionPrecio: number | null
 }
 
 let consecutivo = 0
-const itemVacio = (): Item => ({ clave: `i${++consecutivo}`, productoId: '', descripcion: '', cantidad: '1', precio: null })
+const itemVacio = (): Item => ({
+  clave: `i${++consecutivo}`,
+  productoId: '',
+  descripcion: '',
+  cantidad: '1',
+  precio: null,
+  decorar: false,
+  decoracion: '',
+  decoracionPrecio: null,
+})
+const decoracionIncompleta = (i: Item) => i.decorar && (!i.decoracion.trim() || !i.decoracionPrecio)
 const cantidadValida = (c: string) => /^\d+([.,]\d{1,3})?$/.test(c.trim()) && dec(c.trim().replace(',', '.')).gt(0)
 
+/** El valor de la decoración es por el ítem completo, no por unidad. */
 function subtotalItem(i: Item): number {
   if (!cantidadValida(i.cantidad) || i.precio === null) return 0
-  return aPesos(dec(i.cantidad.trim().replace(',', '.')).mul(i.precio))
+  return aPesos(dec(i.cantidad.trim().replace(',', '.')).mul(i.precio)) + (i.decorar ? (i.decoracionPrecio ?? 0) : 0)
 }
 
 /** Nuevo encargo o edición de uno pendiente (RF-34). El abono inicial es opcional. */
@@ -84,7 +98,16 @@ function FormEncargo({
   const [observaciones, setObservaciones] = useState(encargo?.observaciones ?? '')
   const [items, setItems] = useState<Item[]>(() =>
     encargo
-      ? encargo.items.map((i) => ({ clave: i.id, productoId: i.producto_id ?? '', descripcion: i.descripcion, cantidad: dec(i.cantidad).toFixed(), precio: i.precio }))
+      ? encargo.items.map((i) => ({
+          clave: i.id,
+          productoId: i.producto_id ?? '',
+          descripcion: i.descripcion,
+          cantidad: dec(i.cantidad).toFixed(),
+          precio: i.precio,
+          decorar: i.decoracion !== null,
+          decoracion: i.decoracion ?? '',
+          decoracionPrecio: i.decoracion_precio,
+        }))
       : [itemVacio()],
   )
   const [abono, setAbono] = useState<number | null>(null)
@@ -93,11 +116,18 @@ function FormEncargo({
 
   const total = items.reduce((s, i) => s + subtotalItem(i), 0)
   const itemsMal = items.some((i) => !cantidadValida(i.cantidad) || i.precio === null || (!i.productoId && !i.descripcion.trim()))
+  const decoracionMal = items.some(decoracionIncompleta)
   const errores = {
     cliente: !clienteId ? 'Elige el cliente.' : undefined,
     fecha: !dia || !hora ? 'Indica fecha y hora.' : undefined,
     direccion: tipo === 'domicilio' && !direccion.trim() && !direccionCliente ? 'Escribe la dirección de entrega.' : undefined,
-    items: itemsMal ? 'Cada ítem necesita descripción, cantidad y precio.' : total <= 0 ? 'El encargo debe valer más de $0.' : undefined,
+    items: itemsMal
+      ? 'Cada ítem necesita descripción, cantidad y precio.'
+      : decoracionMal
+        ? 'La decoración necesita referencia y valor.'
+        : total <= 0
+          ? 'El encargo debe valer más de $0.'
+          : undefined,
     abono: abono ? (abono > total ? 'El abono no puede superar el total.' : !metodoAbono ? 'Elige cómo pagó el abono.' : undefined) : undefined,
   }
   const valido = Object.values(errores).every((e) => !e)
@@ -116,6 +146,8 @@ function FormEncargo({
           descripcion: i.descripcion.trim() || null,
           cantidad: i.cantidad.trim().replace(',', '.'),
           precio: i.precio,
+          decoracion: i.decorar ? i.decoracion.trim() : null,
+          decoracion_precio: i.decorar ? i.decoracionPrecio : null,
         })),
       }
       if (encargo) return api<Encargo>(`/encargos/${encargo.id}`, { method: 'PATCH', json: cuerpo })
@@ -198,28 +230,66 @@ function FormEncargo({
         <legend className="mb-2 text-sm font-semibold">Qué lleva</legend>
         <ul className="grid gap-3">
           {items.map((i, n) => (
-            <li key={i.clave} aria-label={`Ítem ${n + 1}`} className="grid gap-3 rounded-[14px] border border-linea p-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_90px_140px_auto] sm:items-end">
-              <Buscador
-                etiqueta="Producto"
-                opciones={opcionesProducto}
-                valor={i.productoId}
-                alCambiar={(id) => {
-                  const p = productos.data?.find((x) => x.id === id)
-                  cambiarItem(i.clave, p ? { productoId: id, descripcion: p.nombre, precio: p.precio } : { productoId: '' })
-                }}
-              />
-              <Campo etiqueta="Descripción" value={i.descripcion} maxLength={200} onChange={(e) => cambiarItem(i.clave, { descripcion: e.target.value })} />
-              <Campo etiqueta="Cantidad" inputMode="decimal" value={i.cantidad} onChange={(e) => cambiarItem(i.clave, { cantidad: e.target.value })} />
-              <CampoDinero etiqueta="Precio c/u" valor={i.precio} alCambiar={(v) => cambiarItem(i.clave, { precio: v })} />
-              <button
-                type="button"
-                disabled={items.length === 1}
-                onClick={() => setItems((l) => l.filter((x) => x.clave !== i.clave))}
-                aria-label={`Quitar el ítem ${n + 1}`}
-                className="grid size-12 place-items-center rounded-control border border-dorado-claro hover:border-dorado-borde disabled:opacity-40"
-              >
-                <Trash2 aria-hidden className="size-5" strokeWidth={1.7} />
-              </button>
+            <li key={i.clave} aria-label={`Ítem ${n + 1}`} className="grid gap-3 rounded-[14px] border border-linea p-3">
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_90px_140px_auto] sm:items-end">
+                <Buscador
+                  etiqueta="Producto"
+                  opciones={opcionesProducto}
+                  valor={i.productoId}
+                  alCambiar={(id) => {
+                    const p = productos.data?.find((x) => x.id === id)
+                    cambiarItem(i.clave, p ? { productoId: id, descripcion: p.nombre, precio: p.precio } : { productoId: '' })
+                  }}
+                />
+                <Campo etiqueta="Descripción" value={i.descripcion} maxLength={200} onChange={(e) => cambiarItem(i.clave, { descripcion: e.target.value })} />
+                <Campo etiqueta="Cantidad" inputMode="decimal" value={i.cantidad} onChange={(e) => cambiarItem(i.clave, { cantidad: e.target.value })} />
+                <CampoDinero etiqueta="Precio c/u" valor={i.precio} alCambiar={(v) => cambiarItem(i.clave, { precio: v })} />
+                <button
+                  type="button"
+                  disabled={items.length === 1}
+                  onClick={() => setItems((l) => l.filter((x) => x.clave !== i.clave))}
+                  aria-label={`Quitar el ítem ${n + 1}`}
+                  className="grid size-12 place-items-center rounded-control border border-dorado-claro hover:border-dorado-borde disabled:opacity-40"
+                >
+                  <Trash2 aria-hidden className="size-5" strokeWidth={1.7} />
+                </button>
+              </div>
+              {i.decorar ? (
+                <div className="grid gap-3 rounded-[12px] bg-rosa-suave/60 p-3 sm:grid-cols-[minmax(0,1fr)_180px_auto] sm:items-end">
+                  <Campo
+                    etiqueta="Referencia de la decoración"
+                    placeholder="Ej.: letras doradas y topper de foto"
+                    value={i.decoracion}
+                    maxLength={200}
+                    onChange={(e) => cambiarItem(i.clave, { decoracion: e.target.value })}
+                    error={intento && decoracionIncompleta(i) && !i.decoracion.trim() ? 'Escribe qué decoración lleva.' : undefined}
+                  />
+                  <CampoDinero
+                    etiqueta="Valor de la decoración"
+                    valor={i.decoracionPrecio}
+                    alCambiar={(v) => cambiarItem(i.clave, { decoracionPrecio: v })}
+                    error={intento && decoracionIncompleta(i) && !i.decoracionPrecio ? 'Indica cuánto se cobra.' : undefined}
+                  />
+                  <Boton
+                    variante="secundario"
+                    className="h-12"
+                    aria-label={`Quitar la decoración del ítem ${n + 1}`}
+                    onClick={() => cambiarItem(i.clave, { decorar: false, decoracion: '', decoracionPrecio: null })}
+                  >
+                    Quitar decoración
+                  </Boton>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  aria-label={`Agregar decoración al ítem ${n + 1}`}
+                  onClick={() => cambiarItem(i.clave, { decorar: true })}
+                  className="inline-flex h-10 w-fit items-center gap-1.5 rounded-control border border-dashed border-dorado-borde px-3 text-[15px] font-semibold text-fucsia-oscuro hover:bg-rosa-suave"
+                >
+                  <Plus aria-hidden className="size-4" />
+                  Decoración
+                </button>
+              )}
             </li>
           ))}
         </ul>

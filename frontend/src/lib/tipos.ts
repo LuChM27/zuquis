@@ -553,6 +553,8 @@ export interface Gasto {
   fuente: FuenteGasto
   caja_sesion_id: string | null
   proveedor_id: string | null
+  encargo_id: string | null
+  encargo_numero: number | null
   soporte_url: string | null
   estado: 'registrado' | 'anulado'
   usuario: string | null
@@ -654,7 +656,16 @@ export interface Encargo {
   tipo_entrega: TipoEntrega
   direccion_entrega: string | null
   observaciones: string | null
-  items: { id: string; producto_id: string | null; descripcion: string; cantidad: string; precio: number; subtotal: number }[]
+  items: {
+    id: string
+    producto_id: string | null
+    descripcion: string
+    cantidad: string
+    precio: number
+    subtotal: number
+    decoracion: string | null
+    decoracion_precio: number | null
+  }[]
   total: number
   abonado: number
   saldo: number
@@ -678,6 +689,9 @@ export interface Encargo {
   monto_retenido: number
   motivo_cancelacion: string | null
   cancelado_en: string | null
+  decoracion_cobrada: number
+  gasto_decoracion: number
+  gastos_decoracion: { id: string; fecha: string; descripcion: string; monto: number; fuente: FuenteGasto; estado: 'registrado' | 'anulado' }[]
 }
 
 export interface ConteoDia {
