@@ -10,7 +10,10 @@ import { api } from '../../lib/api'
 import { unir } from '../../lib/clases'
 import { pesos } from '../../lib/formato'
 import { useClaveIdempotencia } from '../../lib/idempotencia'
-import type { DecisionCancelacion, Encargo, MetodoPago } from '../../lib/tipos'
+import type { DecisionCancelacion, Encargo, FuenteGasto, MetodoPago } from '../../lib/tipos'
+import { useSesion } from '../../auth/contexto'
+import { Campo } from '../../components/ui'
+import { FUENTES } from '../gastos/fuentes'
 import { useCaja } from '../caja/usarCaja'
 import { telefonoLegible, useMetodosActivos } from '../clientes/datos'
 import { CamposDomicilio, type DatosDomicilio } from '../domicilios/CamposDomicilio'
@@ -62,7 +65,7 @@ function useAccionEncargo<T>(ruta: string, alTerminar: (e: Encargo) => void, men
     mutationFn: (cuerpo: T) => api<Encargo>(ruta, { method: 'POST', json: cuerpo, idempotencia: clave.para(cuerpo) }),
     onSuccess: (e) => {
       clave.olvidar()
-      for (const k of [['encargos'], ['caja'], ['ventas'], ['domicilios'], ['productos'], ['clientes']]) void clienteQuery.invalidateQueries({ queryKey: k })
+      for (const k of [['encargos'], ['caja'], ['ventas'], ['domicilios'], ['productos'], ['clientes'], ['gastos']]) void clienteQuery.invalidateQueries({ queryKey: k })
       avisar(mensaje(e))
       alTerminar(e)
     },
@@ -103,6 +106,95 @@ export function DialogoAbono({ encargo, abierto, alCerrar }: { encargo: Encargo;
           </Boton>
         </form>
       </RequiereCaja>
+    </Dialogo>
+  )
+}
+
+/** Materiales comprados para decorar el encargo: queda como gasto de "Materiales de decoración"
+ * ligado al encargo. Quien solo registra gastos de caja, solo desde la caja. */
+export function DialogoGastoDecoracion({ encargo, abierto, alCerrar }: { encargo: Encargo; abierto: boolean; alCerrar: () => void }) {
+  const { puede } = useSesion()
+  const caja = useCaja()
+  const metodos = useMetodosActivos()
+  const soloCaja = !puede('gastos.crear')
+  const [descripcion, setDescripcion] = useState('')
+  const [monto, setMonto] = useState<number | null>(null)
+  const [fuente, setFuente] = useState<FuenteGasto>('caja')
+  const [metodo, setMetodo] = useState('')
+  const [intento, setIntento] = useState(false)
+  const registrar = useAccionEncargo<{ descripcion: string; monto: number; metodo_pago_id: string; fuente: FuenteGasto }>(
+    `/encargos/${encargo.id}/gastos`,
+    () => {
+      setDescripcion('')
+      setMonto(null)
+      setIntento(false)
+      alCerrar()
+    },
+    () => 'Gasto de decoración registrado.',
+  )
+  const cajaCerrada = fuente === 'caja' && caja.data !== undefined && !caja.data.abierta
+  const errores = {
+    descripcion: descripcion.trim().length < 3 ? 'Escribe qué se compró (mínimo 3 letras).' : undefined,
+    monto: !monto ? 'Escribe el valor.' : undefined,
+    metodo: !metodo ? 'Elige cómo se pagó.' : undefined,
+  }
+  const listo = Object.values(errores).every((e) => !e) && !cajaCerrada
+  return (
+    <Dialogo abierto={abierto} alCerrar={alCerrar} titulo="Gasto de decoración" rotulo={`Encargo n.º ${String(encargo.numero).padStart(4, '0')}`}>
+      <form
+        noValidate
+        className="grid gap-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          setIntento(true)
+          if (listo) registrar.mutate({ descripcion: descripcion.trim(), monto: monto!, metodo_pago_id: metodo, fuente })
+        }}
+      >
+        <Campo
+          etiqueta="Qué se compró"
+          placeholder="Ej.: fondant, topper y letras"
+          value={descripcion}
+          maxLength={200}
+          onChange={(e) => setDescripcion(e.target.value)}
+          error={intento ? errores.descripcion : undefined}
+        />
+        <CampoDinero etiqueta="Valor" valor={monto} alCambiar={setMonto} error={intento ? errores.monto : undefined} />
+        {!soloCaja && (
+          <div role="radiogroup" aria-label="De dónde sale la plata">
+            <p className="mb-1.5 text-sm font-semibold">De dónde sale la plata</p>
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(FUENTES) as FuenteGasto[]).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  role="radio"
+                  aria-checked={fuente === f}
+                  onClick={() => setFuente(f)}
+                  className={unir(
+                    'h-11 rounded-control border px-4 text-[15px]',
+                    fuente === f ? 'border-fucsia bg-rosa-suave font-semibold text-fucsia-oscuro' : 'border-dorado-claro bg-blanco hover:border-dorado-borde',
+                  )}
+                >
+                  {FUENTES[f].texto}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-sm text-cafe-medio">{FUENTES[fuente].ayuda}</p>
+          </div>
+        )}
+        <Metodos metodos={metodos.data ?? []} valor={metodo} alCambiar={setMetodo} etiqueta="Cómo se pagó" />
+        {intento && errores.metodo && <p role="alert" className="text-sm text-peligro-texto">{errores.metodo}</p>}
+        {cajaCerrada && (
+          <Aviso tono="aviso">
+            La caja está cerrada: ábrela en <Link to="/caja" className="font-semibold text-fucsia underline">Caja</Link>
+            {soloCaja ? ' para registrar el gasto.' : ' o elige otra forma de pago.'}
+          </Aviso>
+        )}
+        {registrar.isError && <Aviso>{registrar.error.message}</Aviso>}
+        <Boton type="submit" disabled={registrar.isPending || cajaCerrada}>
+          {registrar.isPending ? 'Registrando…' : monto ? `Registrar gasto de ${pesos(monto)}` : 'Registrar gasto'}
+        </Boton>
+      </form>
     </Dialogo>
   )
 }

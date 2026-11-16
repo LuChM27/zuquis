@@ -11,16 +11,12 @@ import { useAvisos } from '../../components/usarAvisos'
 import { api } from '../../lib/api'
 import { fechaCorta, pesos } from '../../lib/formato'
 import type { CategoriaGasto, FuenteGasto, Gasto, MetodoPago, Pagina } from '../../lib/tipos'
+import { FUENTES } from './fuentes'
 import { hoyIso } from '../../lib/unidades'
 import { useImagen } from '../carta/utilidades'
 import { useCaja } from '../caja/usarCaja'
 import { CategoriasGasto } from './CategoriasGasto'
 
-const FUENTES: Record<FuenteGasto, { texto: string; ayuda: string }> = {
-  caja: { texto: 'De la caja', ayuda: 'Sale del dinero de la caja abierta y aparece en el cierre.' },
-  banco: { texto: 'Del banco', ayuda: 'Se pagó desde una cuenta del negocio; no toca la caja.' },
-  duenos: { texto: 'De los dueños', ayuda: 'Lo pagó un dueño de su bolsillo; no toca la caja.' },
-}
 const TAMANO = 20
 
 /** Gastos de caja, banco o dueños (RF-21 a RF-23) y sus categorías con cuenta PUC. */
@@ -348,6 +344,7 @@ function DetalleGasto({ gasto }: { gasto: Gasto }) {
     ['Fecha', fechaCorta(new Date(`${gasto.fecha}T12:00:00`))],
     ['Pagado', `${FUENTES[gasto.fuente].texto} · ${gasto.metodo ?? ''}`],
     ['Registró', gasto.usuario ?? '—'],
+    ...(gasto.encargo_numero ? ([['Encargo', `n.º ${String(gasto.encargo_numero).padStart(4, '0')}`]] as [string, string][]) : []),
   ]
   return (
     <PanelDetalle rotulo={gasto.estado === 'anulado' ? 'Gasto anulado' : 'Gasto'} titulo={gasto.descripcion}>

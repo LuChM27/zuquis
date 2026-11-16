@@ -10,7 +10,7 @@ import { unir } from '../../lib/clases'
 import { cantidad } from '../../lib/decimal'
 import { fechaCorta, hora, pesos } from '../../lib/formato'
 import type { Encargo, EstadoEncargo } from '../../lib/tipos'
-import { DialogoAbono, DialogoAnularAbono, DialogoCancelar, DialogoEntrega } from './Dialogos'
+import { DialogoAbono, DialogoAnularAbono, DialogoCancelar, DialogoEntrega, DialogoGastoDecoracion } from './Dialogos'
 import { AVANZAR, ESTADOS_ENCARGO, PASOS } from './estados'
 import { diaLocal, sumarDias } from './fechas'
 
@@ -54,11 +54,13 @@ export function DetalleEncargo({ encargo: e, hoy, alEditar }: { encargo: Encargo
   const { puede } = useSesion()
   const { avisar } = useAvisos()
   const clienteQuery = useQueryClient()
-  const [dialogo, setDialogo] = useState<'abono' | 'entrega' | 'cancelar' | null>(null)
+  const [dialogo, setDialogo] = useState<'abono' | 'entrega' | 'cancelar' | 'gasto' | null>(null)
   const [anulando, setAnulando] = useState<string | null>(null)
   const activo = ['pendiente', 'en_produccion', 'listo'].includes(e.estado)
   const avanzar = AVANZAR[e.estado]
   const operador = puede('encargos.crear')
+  const registraGastos = puede('gastos.crear') || puede('gastos.crear_caja')
+  const conDecoracion = e.decoracion_cobrada > 0 || e.gastos_decoracion.length > 0
 
   const cambiar = useMutation({
     mutationFn: (estado: EstadoEncargo) => api<Encargo>(`/encargos/${e.id}/estado`, { method: 'POST', json: { estado } }),
@@ -86,12 +88,20 @@ export function DetalleEncargo({ encargo: e, hoy, alEditar }: { encargo: Encargo
         <div className="mt-5"><Progreso estado={e.estado} /></div>
       )}
 
-      {e.items.length > 1 || e.items[0]?.descripcion !== e.descripcion ? (
+      {e.items.length > 1 || e.items[0]?.descripcion !== e.descripcion || e.decoracion_cobrada > 0 ? (
         <ul className="mt-5 grid gap-1 text-[15px] text-cafe-medio">
           {e.items.map((i) => (
-            <li key={i.id} className={fila}>
-              <span>{cantidad(i.cantidad)} × {i.descripcion}</span>
-              <span>{pesos(i.subtotal)}</span>
+            <li key={i.id}>
+              <div className={fila}>
+                <span>{cantidad(i.cantidad)} × {i.descripcion}</span>
+                <span>{pesos(i.subtotal)}</span>
+              </div>
+              {i.decoracion && (
+                <div className={unir(fila, 'pl-4 text-[14px]')}>
+                  <span>Decoración: {i.decoracion}</span>
+                  <span>{pesos(i.decoracion_precio ?? 0)}</span>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -141,6 +151,43 @@ export function DetalleEncargo({ encargo: e, hoy, alEditar }: { encargo: Encargo
         )}
       </div>
 
+      {conDecoracion && (
+        <section aria-label="Decoración" className="mt-5 rounded-[14px] border border-linea px-4 py-4">
+          <h3 className="text-[13px] font-semibold tracking-[0.12em] text-dorado-texto uppercase">Decoración</h3>
+          <dl className="mt-2 grid gap-1.5 text-[16px]">
+            <div className={fila}>
+              <dt className="text-cafe-medio">Cobrado</dt>
+              <dd>{pesos(e.decoracion_cobrada)}</dd>
+            </div>
+            <div className={fila}>
+              <dt className="text-cafe-medio">Gastado en materiales</dt>
+              <dd>−{pesos(e.gasto_decoracion)}</dd>
+            </div>
+            <div className={unir(fila, 'border-t border-linea pt-1.5 font-semibold')}>
+              <dt>Diferencia</dt>
+              <dd className={e.decoracion_cobrada - e.gasto_decoracion < 0 ? 'text-peligro-texto' : undefined}>{pesos(e.decoracion_cobrada - e.gasto_decoracion)}</dd>
+            </div>
+          </dl>
+          {e.gastos_decoracion.length > 0 && (
+            <ul className="mt-3 grid gap-1 text-[14px] text-cafe-medio">
+              {e.gastos_decoracion.map((g) => (
+                <li key={g.id} className={unir(fila, g.estado === 'anulado' && 'line-through')}>
+                  <span>
+                    {diaMes(g.fecha)} · {g.descripcion}
+                  </span>
+                  <span>{pesos(g.monto)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {registraGastos && (
+            <Boton variante="secundario" className="mt-3 h-11 w-full" onClick={() => setDialogo('gasto')}>
+              Registrar gasto de decoración
+            </Boton>
+          )}
+        </section>
+      )}
+
       {(e.estado === 'en_produccion' || e.estado === 'listo') && (
         <p role="status" className="mt-5 flex gap-3 rounded-[14px] bg-aviso-fondo px-4 py-4 text-[15px] text-cafe-medio">
           <CircleAlert aria-hidden className="mt-0.5 size-5 shrink-0 text-aviso" />
@@ -186,6 +233,7 @@ export function DetalleEncargo({ encargo: e, hoy, alEditar }: { encargo: Encargo
 
       <DialogoAbono encargo={e} abierto={dialogo === 'abono'} alCerrar={() => setDialogo(null)} />
       {dialogo === 'entrega' && <DialogoEntrega encargo={e} abierto alCerrar={() => setDialogo(null)} />}
+      {dialogo === 'gasto' && <DialogoGastoDecoracion encargo={e} abierto alCerrar={() => setDialogo(null)} />}
       {dialogo === 'cancelar' && <DialogoCancelar encargo={e} abierto alCerrar={() => setDialogo(null)} />}
       <DialogoAnularAbono encargo={e} abonoId={anulando} alCerrar={() => setAnulando(null)} />
     </section>
