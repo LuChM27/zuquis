@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.modules.domicilios.schemas import DomicilioEntrada
 from app.shared.dinero import Cantidad, Pesos
 
 TipoServicio = Literal["local", "llevar", "domicilio"]
@@ -65,6 +66,9 @@ class VentaCrear(BaseModel):
     descuento: DescuentoEntrada | None = Field(default=None, description="Sobre toda la venta")
     propina: Pesos = Field(default=0, ge=0)
     valor_domicilio: Pesos = Field(default=0, ge=0)
+    domicilio: DomicilioEntrada | None = Field(
+        default=None, description="Obligatorio si la venta es a domicilio (RF-13)"
+    )
     pagos: list[PagoEntrada] = Field(
         default_factory=list, max_length=10, description="Vacío solo si se cobra $0 (cortesía)"
     )
@@ -76,6 +80,8 @@ class VentaCrear(BaseModel):
     def _domicilio(self):
         if self.valor_domicilio and self.tipo_servicio != "domicilio":
             raise ValueError("El valor del domicilio solo aplica a ventas a domicilio.")
+        if (self.domicilio is not None) != (self.tipo_servicio == "domicilio"):
+            raise ValueError("Una venta a domicilio lleva dirección y domiciliario; las demás, no.")
         return self
 
 
@@ -92,7 +98,7 @@ class ModificadorSalida(BaseModel):
 
 class ItemSalida(BaseModel):
     id: uuid.UUID
-    producto_id: uuid.UUID
+    producto_id: uuid.UUID | None
     producto: str
     cantidad: Cantidad
     precio_unitario: int
@@ -119,6 +125,9 @@ class VentaSalida(BaseModel):
     caja_sesion_id: uuid.UUID
     tipo_servicio: str
     cliente_id: uuid.UUID | None
+    cliente: str | None = None
+    encargo_id: uuid.UUID | None = None
+    encargo_numero: int | None = None
     items: list[ItemSalida]
     subtotal: int
     descuento_total: int
@@ -128,7 +137,8 @@ class VentaSalida(BaseModel):
     total: int
     propina: int
     valor_domicilio: int
-    cobrado: int = Field(description="total + propina + domicilio = Σ pagos")
+    abonos_aplicados: int = Field(default=0, description="Abonos del encargo ya recibidos")
+    cobrado: int = Field(description="total + propina + domicilio − abonos = Σ pagos")
     cambio: int
     costo_total: int
     pagos: list[PagoSalida]
@@ -145,7 +155,7 @@ class MetodoResumen(BaseModel):
 
 
 class ProductoResumen(BaseModel):
-    producto_id: uuid.UUID
+    producto_id: uuid.UUID | None
     producto: str
     cantidad: Cantidad
     valor: int = Field(description="Después del descuento del ítem, antes del de la venta")
@@ -162,5 +172,8 @@ class ResumenVentas(BaseModel):
     descuentos: int
     propinas: int
     domicilios: int
+    ingresos_cancelacion: int = Field(
+        default=0, description="Abonos retenidos en encargos cancelados: no son venta (RN-22)"
+    )
     por_metodo: list[MetodoResumen]
     productos: list[ProductoResumen]

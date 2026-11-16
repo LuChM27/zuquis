@@ -33,19 +33,24 @@ class Venta(Base, Operativo):
             "AND valor_domicilio >= 0 AND total = subtotal - descuento_total",
             name="totales",
         ),
+        CheckConstraint(
+            "abonos_aplicados >= 0 AND abonos_aplicados <= total", name="abonos_aplicados"
+        ),
         Index("ix_ventas_sede_fecha", "sede_id", "fecha"),
     )
 
     numero: Mapped[int]
     caja_sesion_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("caja_sesiones.id"), index=True)
     tipo_servicio: Mapped[str] = mapped_column(String(10))
-    # Los clientes llegan en la Fase 3 (#39); por ahora sin llave foránea.
-    cliente_id: Mapped[uuid.UUID | None]
+    cliente_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("clientes.id"), index=True)
     subtotal: Mapped[int] = mapped_column(MontoPesos())
     descuento_total: Mapped[int] = mapped_column(MontoPesos(), default=0)
     valor_domicilio: Mapped[int] = mapped_column(MontoPesos(), default=0)
     total: Mapped[int] = mapped_column(MontoPesos())
     propina: Mapped[int] = mapped_column(MontoPesos(), default=0)
+    # Venta que nace de entregar un encargo: lo ya abonado no se vuelve a cobrar (RN-21), así
+    # que Σ pagos = total + propina + domicilio − abonos_aplicados.
+    abonos_aplicados: Mapped[int] = mapped_column(MontoPesos(), default=0, server_default="0")
     costo_total: Mapped[int] = mapped_column(MontoPesos(), default=0)
     estado: Mapped[str] = mapped_column(String(10), default="pagada")
     descuento_motivo: Mapped[str | None] = mapped_column(String(200))
@@ -65,16 +70,21 @@ class Venta(Base, Operativo):
 
 
 class VentaItem(Base, Operativo):
-    """Copia el precio del momento: si luego cambia en la carta, la venta no cambia."""
+    """Copia el precio del momento: si luego cambia en la carta, la venta no cambia. Un ítem
+    personalizado de un encargo no tiene producto: lleva su descripción."""
 
     __tablename__ = "venta_items"
     __table_args__ = (
         CheckConstraint("cantidad > 0", name="cantidad_positiva"),
         CheckConstraint("descuento >= 0 AND descuento <= bruto", name="descuento"),
+        CheckConstraint(
+            "producto_id IS NOT NULL OR descripcion IS NOT NULL", name="producto_o_descripcion"
+        ),
     )
 
     venta_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ventas.id"), index=True)
-    producto_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("productos.id"), index=True)
+    producto_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("productos.id"), index=True)
+    descripcion: Mapped[str | None] = mapped_column(String(200))
     cantidad: Mapped[Decimal] = mapped_column(NumericCantidad())
     precio_unitario: Mapped[int] = mapped_column(MontoPesos())
     # (precio + adiciones) × cantidad, antes de descuentos.

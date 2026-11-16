@@ -14,8 +14,11 @@ from app.modules.carta.models import (
     RecetaItem,
     producto_modificadores,
 )
+from app.modules.clientes.models import Cliente
 from app.modules.compras.models import Compra, CompraItem, PagoCompra, Proveedor, proveedor_insumos
 from app.modules.configuracion.models import Configuracion, MetodoPago, Sede, Unidad
+from app.modules.domicilios.models import Domiciliario, Domicilio
+from app.modules.encargos.models import Encargo, EncargoAbono, EncargoItem
 from app.modules.gastos.models import CategoriaGasto, Gasto
 from app.modules.inventario.models import (
     AjusteInventario,
@@ -46,10 +49,16 @@ __all__ = [
     "CajaSesion",
     "Categoria",
     "CategoriaGasto",
+    "Cliente",
     "Compra",
     "CompraItem",
     "Configuracion",
     "Consecutivo",
+    "Domiciliario",
+    "Domicilio",
+    "Encargo",
+    "EncargoAbono",
+    "EncargoItem",
     "FaltanteInventario",
     "Gasto",
     "Idempotencia",

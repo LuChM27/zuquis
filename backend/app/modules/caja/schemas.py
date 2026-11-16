@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.modules.domicilios.schemas import LiquidacionTurno
 from app.shared.dinero import Pesos
 
 
@@ -103,6 +104,9 @@ class VistaCierre(BaseModel):
     efectivo_esperado: int
     resumen: ResumenTurno
     domicilios_sin_liquidar: int = 0
+    domicilios: LiquidacionTurno | None = Field(
+        default=None, description="Paso 1: lo cobrado por domicilios y lo entregado a cada uno"
+    )
 
 
 class SesionResumen(SesionSalida):
