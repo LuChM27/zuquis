@@ -512,19 +512,34 @@ def crear_de_encargo(
             select(Producto).where(Producto.id.in_({i.producto_id for i in items if i.producto_id}))
         )
     }
-    lineas = [
-        _Linea(
-            cantidad=i.cantidad,
-            precio_unitario=i.precio,
-            producto=productos.get(i.producto_id),
-            modificadores=[],
-            precios_mods=[],
-            bruto=costo_linea(i.cantidad, Decimal(i.precio)),
-            descuento=0,
-            descripcion=i.descripcion,
+    lineas = []
+    for i in items:
+        lineas.append(
+            _Linea(
+                cantidad=i.cantidad,
+                precio_unitario=i.precio,
+                producto=productos.get(i.producto_id),
+                modificadores=[],
+                precios_mods=[],
+                bruto=costo_linea(i.cantidad, Decimal(i.precio)),
+                descuento=0,
+                descripcion=i.descripcion,
+            )
         )
-        for i in items
-    ]
+        # La decoración va en su propia línea, sin producto: se cobra pero no mueve inventario.
+        if i.decoracion and i.decoracion_precio:
+            lineas.append(
+                _Linea(
+                    cantidad=Decimal(1),
+                    precio_unitario=i.decoracion_precio,
+                    producto=None,
+                    modificadores=[],
+                    precios_mods=[],
+                    bruto=i.decoracion_precio,
+                    descuento=0,
+                    descripcion=f"Decoración: {i.decoracion}"[:200],
+                )
+            )
     saldo = encargo.total - abonado
     _validar_pagos(db, ctx, pagos, saldo + valor_domicilio)
     venta = _guardar(

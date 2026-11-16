@@ -99,3 +99,42 @@ def test_categoria_de_decoracion_sembrada(cliente, admin):
     assert {"nombre": "Materiales de decoración", "cuenta_puc": "5195"} in [
         {"nombre": c["nombre"], "cuenta_puc": c["cuenta_puc"]} for c in r
     ]
+
+
+# --- Entrega: la decoración es una línea propia de la venta ---------------------------------
+
+
+def entregar_y_ver_venta(cliente, headers, encargo, monto, metodo):
+    alistar(cliente, headers, encargo)
+    r = entregar(cliente, headers, encargo, [{"metodo_pago_id": metodo, "monto": monto}])
+    assert r.status_code == 200, r.text
+    return cliente.get(f"{API}/ventas/{r.json()['venta_id']}", headers=headers).json()
+
+
+def test_entregar_agrega_linea_de_decoracion_sin_inventario(
+    cliente, admin, cliente_a, carta, metodos, caja_abierta, db
+):
+    pastel = {
+        "producto_id": carta["pastel"]["id"],
+        "cantidad": "10",
+        "precio": 4000,
+        "decoracion": "Topper de foto",
+        "decoracion_precio": 12000,
+    }
+    caja = {"descripcion": "Caja", "cantidad": "1", "precio": 5000}
+    e = crear_encargo(cliente, admin, con_items(cliente_a["id"], pastel, caja)).json()
+    assert e["total"] == 57000
+    venta = entregar_y_ver_venta(cliente, admin, e, 57000, metodos["Efectivo"])
+    assert stock(db, "producto", carta["pastel"]["id"]) == D("2")
+    assert venta["total"] == 57000
+    lineas = [(i["producto"], i["precio_unitario"], i["costo_total"]) for i in venta["items"]]
+    assert lineas[1:] == [("Decoración: Topper de foto", 12000, 0), ("Caja", 5000, 0)]
+    assert lineas[0][1] == 4000
+
+
+def test_referencia_larga_se_recorta_en_la_venta(cliente, admin, cliente_a, metodos, caja_abierta):
+    item = DECORADA | {"decoracion": "x" * 200}
+    e = crear_encargo(cliente, admin, con_items(cliente_a["id"], item)).json()
+    venta = entregar_y_ver_venta(cliente, admin, e, 110000, metodos["Efectivo"])
+    assert len(venta["items"][1]["producto"]) == 200
+    assert venta["items"][1]["producto"].startswith("Decoración: xxx")
