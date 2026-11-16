@@ -313,8 +313,14 @@ function FormGasto({ alRegistrar }: { alRegistrar: (g: Gasto) => void }) {
           </Boton>
           {soporte && <p className="mt-1.5 text-sm text-exito-texto">Foto adjunta.</p>}
         </div>
+        {intento && metodos.data && !metodoId && (
+          <p role="alert" className="text-sm text-peligro-texto">
+            Elige con qué se pagó.
+          </p>
+        )}
         {cajaCerrada && <Aviso>No hay caja abierta: un gasto de caja necesita la caja abierta.</Aviso>}
-        <Boton type="submit" disabled={guardar.isPending || subiendo}>
+        {/* Sin los métodos de pago cargados no hay con qué registrar: el botón espera. */}
+        <Boton type="submit" disabled={guardar.isPending || subiendo || metodos.isPending}>
           {guardar.isPending ? 'Registrando…' : 'Registrar gasto'}
         </Boton>
       </form>
