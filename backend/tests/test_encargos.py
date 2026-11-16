@@ -1,6 +1,8 @@
 """Encargos: creación, ítems, estados, abonos, entrega y cancelación (#41, #42)."""
 
+from datetime import datetime
 from decimal import Decimal as D
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import text
@@ -17,6 +19,8 @@ from tests.fixtures_encargos import (
     torta,
 )
 from tests.fixtures_ventas import API, esperado, stock
+
+BOGOTA = ZoneInfo("America/Bogota")
 
 
 @pytest.fixture
@@ -101,7 +105,7 @@ def test_editar_mientras_esta_pendiente(cliente, admin, encargo):
     assert r.status_code == 200, r.text
     e = r.json()
     assert (e["total"], e["saldo"], e["observaciones"]) == (150000, 150000, "Sin nueces")
-    assert e["fecha_entrega"].startswith("2026-10-17T10:00")
+    assert datetime.fromisoformat(e["fecha_entrega"]) == datetime(2026, 10, 17, 10, tzinfo=BOGOTA)
 
 
 def test_rn23_en_produccion_no_se_edita(cliente, admin, encargo):
@@ -202,7 +206,12 @@ def test_listado_por_fecha_de_entrega_y_conteo_de_la_semana(cliente, admin, clie
     del_16 = cliente.get(
         f"{API}/encargos", headers=admin, params={"desde": "2026-10-16", "hasta": "2026-10-16"}
     ).json()
-    assert [e["fecha_entrega"][11:16] for e in del_16["items"]] == ["14:00", "20:00", "23:30"]
+    # La base puede estar en otra zona (en CI, UTC): la hora se compara en la de Colombia.
+    horas = [
+        datetime.fromisoformat(e["fecha_entrega"]).astimezone(BOGOTA).strftime("%H:%M")
+        for e in del_16["items"]
+    ]
+    assert horas == ["14:00", "20:00", "23:30"]
 
     semana = cliente.get(
         f"{API}/encargos/conteo",
