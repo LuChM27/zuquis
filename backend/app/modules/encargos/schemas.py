@@ -22,9 +22,18 @@ class ItemEntrada(BaseModel):
     precio: Pesos | None = Field(
         default=None, ge=0, description="Por unidad. Por defecto, el de la carta"
     )
+    decoracion: str | None = Field(
+        default=None, max_length=200, description="Qué decoración lleva (texto libre)"
+    )
+    decoracion_precio: Pesos | None = Field(
+        default=None, gt=0, description="Valor de la decoración por el ítem completo"
+    )
 
     @model_validator(mode="after")
     def _personalizado(self):
+        self.decoracion = (self.decoracion or "").strip() or None
+        if (self.decoracion is None) != (self.decoracion_precio is None):
+            raise ValueError("La decoración necesita referencia y valor.")
         if self.producto_id is None:
             if not (self.descripcion or "").strip():
                 raise ValueError("Un ítem sin producto necesita descripción.")
@@ -106,6 +115,8 @@ class ItemSalida(BaseModel):
     cantidad: Cantidad
     precio: int
     subtotal: int
+    decoracion: str | None
+    decoracion_precio: int | None
 
 
 class AbonoSalida(BaseModel):

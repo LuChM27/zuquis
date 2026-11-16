@@ -64,12 +64,19 @@ class Encargo(Base, Operativo):
 
 class EncargoItem(Base, Operativo):
     """Con producto de la carta (descuenta inventario al entregar) o personalizado, solo con
-    descripción y precio."""
+    descripción y precio. La decoración es opcional: referencia y valor por el ítem completo
+    (no por unidad); solo se cobra, no toca inventario."""
 
     __tablename__ = "encargo_items"
     __table_args__ = (
         CheckConstraint("cantidad > 0", name="cantidad_positiva"),
         CheckConstraint("precio >= 0", name="precio_no_negativo"),
+        CheckConstraint(
+            "(decoracion IS NULL) = (decoracion_precio IS NULL)", name="decoracion_completa"
+        ),
+        CheckConstraint(
+            "decoracion_precio IS NULL OR decoracion_precio > 0", name="decoracion_positiva"
+        ),
     )
 
     encargo_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("encargos.id"), index=True)
@@ -78,6 +85,8 @@ class EncargoItem(Base, Operativo):
     cantidad: Mapped[Decimal] = mapped_column(NumericCantidad())
     precio: Mapped[int] = mapped_column(MontoPesos())
     orden: Mapped[int] = mapped_column(default=0)
+    decoracion: Mapped[str | None] = mapped_column(String(200))
+    decoracion_precio: Mapped[int | None] = mapped_column(MontoPesos())
 
     encargo: Mapped[Encargo] = relationship(back_populates="items")
 

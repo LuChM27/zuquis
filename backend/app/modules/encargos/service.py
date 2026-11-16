@@ -106,13 +106,17 @@ def _items(db: Session, ctx: Contexto, entradas: list[ItemEntrada]) -> list[Enca
                 cantidad=e.cantidad,
                 precio=e.precio if e.precio is not None else producto.precio,
                 orden=orden,
+                decoracion=e.decoracion,
+                decoracion_precio=e.decoracion_precio,
             )
         )
     return items
 
 
 def _total(items: list[EncargoItem]) -> int:
-    total = sum(costo_linea(i.cantidad, Decimal(i.precio)) for i in items)
+    total = sum(
+        costo_linea(i.cantidad, Decimal(i.precio)) + (i.decoracion_precio or 0) for i in items
+    )
     if total <= 0:
         raise ErrorNegocio("VALIDACION", "El encargo debe valer más de $0.", status=422)
     return total
@@ -474,6 +478,8 @@ def salida(db: Session, e: Encargo) -> EncargoSalida:
                 cantidad=i.cantidad,
                 precio=i.precio,
                 subtotal=costo_linea(i.cantidad, Decimal(i.precio)),
+                decoracion=i.decoracion,
+                decoracion_precio=i.decoracion_precio,
             )
             for i in e.items
         ],

@@ -12,7 +12,12 @@ from app.modules.auditoria.service import auditar
 from app.modules.auth.models import Usuario
 from app.modules.caja import service as caja
 from app.modules.configuracion.models import MetodoPago
-from app.modules.gastos.models import CATEGORIAS_INICIALES, CategoriaGasto, Gasto
+from app.modules.gastos.models import (
+    CATEGORIA_DECORACION,
+    CATEGORIAS_INICIALES,
+    CategoriaGasto,
+    Gasto,
+)
 from app.modules.gastos.schemas import CategoriaCrear, CategoriaEditar, GastoCrear, GastoSalida
 from app.shared.bd import guardar_unico
 from app.shared.errores import Conflicto, NoEncontrado, SinPermiso
@@ -24,7 +29,7 @@ DUPLICADA = "Ya existe una categoría de gasto con ese nombre."
 
 def sembrar_categorias(db: Session, sede_id: uuid.UUID) -> None:
     """Categorías iniciales para una sede nueva."""
-    for nombre, puc in CATEGORIAS_INICIALES:
+    for nombre, puc in (*CATEGORIAS_INICIALES, CATEGORIA_DECORACION):
         db.add(CategoriaGasto(sede_id=sede_id, nombre=nombre, cuenta_puc=puc))
 
 
