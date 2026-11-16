@@ -47,6 +47,10 @@ export function tituloDia(iso: string, hoy: string): string {
 /** "octubre de 2026" */
 export const tituloMes = (iso: string) => `${nombreMes(iso)} de ${aFecha(iso).getUTCFullYear()}`
 
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+/** "16 nov" a partir de un día AAAA-MM-DD, sin pasar por la zona horaria. */
+export const diaMesCorto = (iso: string) => `${Number(iso.slice(8, 10))} ${MESES_CORTOS[Number(iso.slice(5, 7)) - 1]}`
+
 export const primeroDelMes = (iso: string) => `${iso.slice(0, 8)}01`
 
 export function sumarMeses(iso: string, meses: number): string {

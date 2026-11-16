@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { diasDelMes, entregaIso, etiquetaSemana, lunesDe, sumarDias, tituloDia } from './fechas'
+import { diaMesCorto, diasDelMes, entregaIso, etiquetaSemana, lunesDe, sumarDias, tituloDia } from './fechas'
 
 describe('fechas de encargos', () => {
+  it('una fecha sin hora se muestra tal cual, sin correrse por la zona horaria', () => {
+    expect(diaMesCorto('2026-11-16')).toBe('16 nov')
+    expect(diaMesCorto('2026-01-01')).toBe('1 ene')
+  })
+
   it('la semana empieza el lunes', () => {
     expect(lunesDe('2026-10-16')).toBe('2026-10-12') // viernes
     expect(lunesDe('2026-10-12')).toBe('2026-10-12') // lunes

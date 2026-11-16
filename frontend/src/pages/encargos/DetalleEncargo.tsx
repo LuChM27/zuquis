@@ -12,13 +12,9 @@ import { fechaCorta, hora, pesos } from '../../lib/formato'
 import type { Encargo, EstadoEncargo } from '../../lib/tipos'
 import { DialogoAbono, DialogoAnularAbono, DialogoCancelar, DialogoEntrega, DialogoGastoDecoracion } from './Dialogos'
 import { AVANZAR, ESTADOS_ENCARGO, PASOS } from './estados'
-import { diaLocal, sumarDias } from './fechas'
+import { diaLocal, diaMesCorto, sumarDias } from './fechas'
 
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-const diaMes = (f: string) => {
-  const d = diaLocal(f)
-  return `${Number(d.slice(8))} ${MESES[Number(d.slice(5, 7)) - 1]}`
-}
+const diaMes = (f: string) => diaMesCorto(diaLocal(f))
 
 /** "entrega hoy 5:00 p. m.", "entrega mañana…", "entrega el 20/10/2026…" */
 function cuando(fecha: string, hoy: string): string {
@@ -173,7 +169,7 @@ export function DetalleEncargo({ encargo: e, hoy, alEditar }: { encargo: Encargo
               {e.gastos_decoracion.map((g) => (
                 <li key={g.id} className={unir(fila, g.estado === 'anulado' && 'line-through')}>
                   <span>
-                    {diaMes(g.fecha)} · {g.descripcion}
+                    {diaMesCorto(g.fecha)} · {g.descripcion}
                   </span>
                   <span>{pesos(g.monto)}</span>
                 </li>
