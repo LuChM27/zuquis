@@ -19,6 +19,7 @@ from app.modules.encargos.schemas import (
     EncargoSalida,
     EntregaEntrada,
     Estado,
+    GastoDecoracionEntrada,
 )
 from app.shared.errores import ErrorNegocio
 from app.shared.fechas import hoy
@@ -28,6 +29,7 @@ router = APIRouter(tags=["Encargos"])
 
 operador = requiere("encargos.crear")
 lector = requiere_alguno("encargos.crear", "encargos.devolver_abono", "reportes.ver")
+registrador_gastos = requiere_alguno("gastos.crear", "gastos.crear_caja")
 
 
 def _con_idempotencia(db, ctx, idem, status, operacion):
@@ -124,6 +126,21 @@ def registrar_abono(
 ):
     """El abono entra a la caja abierta (RN-20) y no puede superar el saldo (RN-19)."""
     return _con_idempotencia(db, ctx, idem, 201, lambda: service.abonar(db, ctx, encargo_id, datos))
+
+
+@router.post("/encargos/{encargo_id}/gastos", response_model=EncargoSalida, status_code=201)
+def registrar_gasto_decoracion(
+    encargo_id: uuid.UUID,
+    datos: GastoDecoracionEntrada,
+    ctx: Contexto = Depends(registrador_gastos),
+    idem: Idempotencia = Depends(idempotencia()),
+    db: Session = Depends(obtener_db),
+):
+    """Gasto de materiales de decoración ligado al encargo; cuenta en Gastos con la categoría
+    "Materiales de decoración". Quien solo registra gastos de caja, solo desde la caja."""
+    return _con_idempotencia(
+        db, ctx, idem, 201, lambda: service.registrar_gasto(db, ctx, encargo_id, datos)
+    )
 
 
 @router.post("/encargos/{encargo_id}/abonos/{abono_id}/anular", response_model=EncargoSalida)

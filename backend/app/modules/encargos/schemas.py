@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 from app.modules.domicilios.schemas import DomicilioEntrada
+from app.modules.gastos.schemas import Fuente
 from app.modules.ventas.schemas import PagoEntrada
 from app.shared.dinero import Cantidad, Pesos
 
@@ -70,6 +71,15 @@ class EncargoEditar(BaseModel):
     items: list[ItemEntrada] | None = Field(default=None, min_length=1, max_length=50)
 
 
+class GastoDecoracionEntrada(BaseModel):
+    """Materiales comprados para decorar este encargo."""
+
+    descripcion: str = Field(min_length=3, max_length=200)
+    monto: Pesos = Field(gt=0)
+    metodo_pago_id: uuid.UUID
+    fuente: Fuente = Field(description="caja: sale del arqueo; banco o dueños: no")
+
+
 class CambioEstado(BaseModel):
     estado: Estado
 
@@ -129,6 +139,15 @@ class AbonoSalida(BaseModel):
     motivo_anulacion: str | None
 
 
+class GastoBreve(BaseModel):
+    id: uuid.UUID
+    fecha: date
+    descripcion: str
+    monto: int
+    fuente: str
+    estado: str
+
+
 class ClienteBreve(BaseModel):
     id: uuid.UUID
     nombre: str
@@ -161,6 +180,9 @@ class EncargoSalida(BaseModel):
     monto_retenido: int
     motivo_cancelacion: str | None
     cancelado_en: datetime | None
+    decoracion_cobrada: int = Field(description="Σ valor de la decoración de los ítems")
+    gasto_decoracion: int = Field(description="Σ gastos de decoración no anulados")
+    gastos_decoracion: list[GastoBreve]
 
 
 class ConteoDia(BaseModel):

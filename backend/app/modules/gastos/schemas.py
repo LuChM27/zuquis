@@ -58,6 +58,8 @@ class GastoSalida(BaseModel):
     fuente: str
     caja_sesion_id: uuid.UUID | None
     proveedor_id: uuid.UUID | None
+    encargo_id: uuid.UUID | None
+    encargo_numero: int | None = None
     soporte_url: str | None
     estado: str
     usuario: str | None = None

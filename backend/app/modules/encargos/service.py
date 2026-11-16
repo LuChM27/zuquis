@@ -31,9 +31,14 @@ from app.modules.encargos.schemas import (
     EncargoEditar,
     EncargoSalida,
     EntregaEntrada,
+    GastoBreve,
+    GastoDecoracionEntrada,
     ItemEntrada,
     ItemSalida,
 )
+from app.modules.gastos import service as gastos
+from app.modules.gastos.models import Gasto
+from app.modules.gastos.schemas import GastoCrear
 from app.modules.ventas import service as ventas
 from app.modules.ventas.models import Venta
 from app.shared.dinero import costo_linea
@@ -443,6 +448,36 @@ def cancelar(
     return encargo
 
 
+def registrar_gasto(
+    db: Session, ctx: Contexto, encargo_id: uuid.UUID, datos: GastoDecoracionEntrada
+) -> Encargo:
+    """Materiales de decoración: se registra como gasto de la categoría de decoración, ligado
+    al encargo. Vale en cualquier estado: los materiales se compran antes de entregar y, si el
+    encargo se cancela, la plata ya salió."""
+    encargo = obtener(db, ctx, encargo_id)
+    gasto = gastos.crear(
+        db,
+        ctx,
+        GastoCrear(
+            categoria_id=gastos.categoria_decoracion(db, ctx).id,
+            descripcion=datos.descripcion,
+            monto=datos.monto,
+            metodo_pago_id=datos.metodo_pago_id,
+            fuente=datos.fuente,
+        ),
+        encargo_id=encargo.id,
+    )
+    auditar(
+        db,
+        ctx,
+        "gasto_decoracion",
+        "encargos",
+        encargo.id,
+        despues={"numero": encargo.numero, "gasto": str(gasto.id), "monto": gasto.monto},
+    )
+    return encargo
+
+
 # --- Consultas ------------------------------------------------------------------------------
 
 
@@ -456,6 +491,11 @@ def salida(db: Session, e: Encargo) -> EncargoSalida:
         ).all()
     )
     recibido = abonado(e)
+    gastos_deco = list(
+        db.scalars(
+            select(Gasto).where(Gasto.encargo_id == e.id).order_by(Gasto.fecha, Gasto.creado_en)
+        )
+    )
     return EncargoSalida(
         id=e.id,
         numero=e.numero,
@@ -511,6 +551,19 @@ def salida(db: Session, e: Encargo) -> EncargoSalida:
         monto_retenido=e.monto_retenido,
         motivo_cancelacion=e.motivo_cancelacion,
         cancelado_en=e.cancelado_en,
+        decoracion_cobrada=sum(i.decoracion_precio or 0 for i in e.items),
+        gasto_decoracion=sum(g.monto for g in gastos_deco if g.estado == "registrado"),
+        gastos_decoracion=[
+            GastoBreve(
+                id=g.id,
+                fecha=g.fecha,
+                descripcion=g.descripcion,
+                monto=g.monto,
+                fuente=g.fuente,
+                estado=g.estado,
+            )
+            for g in gastos_deco
+        ],
     )
 
 

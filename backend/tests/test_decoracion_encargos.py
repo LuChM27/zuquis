@@ -138,3 +138,80 @@ def test_referencia_larga_se_recorta_en_la_venta(cliente, admin, cliente_a, meto
     venta = entregar_y_ver_venta(cliente, admin, e, 110000, metodos["Efectivo"])
     assert len(venta["items"][1]["producto"]) == 200
     assert venta["items"][1]["producto"].startswith("Decoración: xxx")
+
+
+# --- Gastos de materiales de decoración ------------------------------------------------------
+
+
+def gasto_decoracion(cliente, headers, encargo, metodo, monto=9000, fuente="caja"):
+    return cliente.post(
+        f"{API}/encargos/{encargo['id']}/gastos",
+        headers=con_clave(headers),
+        json={
+            "descripcion": "Fondant y topper",
+            "monto": monto,
+            "metodo_pago_id": metodo,
+            "fuente": fuente,
+        },
+    )
+
+
+@pytest.fixture
+def decorado(cliente, admin, cliente_a):
+    item = DECORADA | {"decoracion_precio": 25000}
+    return crear_encargo(cliente, admin, con_items(cliente_a["id"], item)).json()
+
+
+def test_gasto_de_decoracion_queda_ligado_y_en_gastos(
+    cliente, admin, decorado, metodos, caja_abierta
+):
+    r = gasto_decoracion(cliente, admin, decorado, metodos["Efectivo"])
+    assert r.status_code == 201, r.text
+    e = r.json()
+    assert (e["decoracion_cobrada"], e["gasto_decoracion"]) == (25000, 9000)
+    assert [(g["descripcion"], g["monto"], g["estado"]) for g in e["gastos_decoracion"]] == [
+        ("Fondant y topper", 9000, "registrado")
+    ]
+    gastos = cliente.get(f"{API}/gastos", headers=admin).json()["items"]
+    g = next(g for g in gastos if g["id"] == e["gastos_decoracion"][0]["id"])
+    assert (g["categoria"], g["encargo_id"], g["encargo_numero"]) == (
+        "Materiales de decoración",
+        decorado["id"],
+        decorado["numero"],
+    )
+    movs = cliente.get(f"{API}/caja/actual/movimientos", headers=admin).json()
+    assert ("gasto", -9000) in [(m["tipo"], m["monto"]) for m in movs]
+
+
+def test_gasto_anulado_no_cuenta(cliente, admin, decorado, metodos, caja_abierta):
+    e = gasto_decoracion(cliente, admin, decorado, metodos["Efectivo"]).json()
+    gasto_id = e["gastos_decoracion"][0]["id"]
+    r = cliente.post(f"{API}/gastos/{gasto_id}/anular", headers=admin, json={"motivo": "Error"})
+    assert r.status_code == 200, r.text
+    e = cliente.get(f"{API}/encargos/{decorado['id']}", headers=admin).json()
+    assert e["gasto_decoracion"] == 0
+    assert [g["estado"] for g in e["gastos_decoracion"]] == ["anulado"]
+
+
+def test_gasto_en_encargo_entregado_o_cancelado(
+    cliente, admin, cliente_a, decorado, metodos, caja_abierta
+):
+    gasto_decoracion(cliente, admin, decorado, metodos["Efectivo"])
+    assert cancelar(cliente, admin, decorado).status_code == 200
+    r = gasto_decoracion(cliente, admin, decorado, metodos["Efectivo"], 3000)
+    assert r.status_code == 201, r.text
+    assert [g["estado"] for g in r.json()["gastos_decoracion"]] == ["registrado", "registrado"]
+    assert r.json()["gasto_decoracion"] == 12000
+
+    otro = crear_encargo(cliente, admin, con_items(cliente_a["id"], DECORADA)).json()
+    entregar_y_ver_venta(cliente, admin, otro, 110000, metodos["Efectivo"])
+    assert gasto_decoracion(cliente, admin, otro, metodos["Efectivo"]).status_code == 201
+
+
+def test_cajero_solo_desde_la_caja(cliente, decorado, metodos, crear_usuario, login):
+    cajero = login(crear_usuario("cajero"))
+    cliente.post(f"{API}/caja/abrir", headers=cajero, json={"base_inicial": 50000})
+    r = gasto_decoracion(cliente, cajero, decorado, metodos["Nequi"], fuente="banco")
+    assert r.status_code == 403, r.text
+    r = gasto_decoracion(cliente, cajero, decorado, metodos["Efectivo"])
+    assert r.status_code == 201, r.text

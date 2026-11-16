@@ -12,6 +12,7 @@ from app.modules.auditoria.service import auditar
 from app.modules.auth.models import Usuario
 from app.modules.caja import service as caja
 from app.modules.configuracion.models import MetodoPago
+from app.modules.encargos.models import Encargo
 from app.modules.gastos.models import (
     CATEGORIA_DECORACION,
     CATEGORIAS_INICIALES,
@@ -72,7 +73,26 @@ def editar_categoria(
     return c
 
 
-def crear(db: Session, ctx: Contexto, datos: GastoCrear) -> Gasto:
+def categoria_decoracion(db: Session, ctx: Contexto) -> CategoriaGasto:
+    """La categoría de los materiales de decoración de encargos; si no está, se crea."""
+    nombre, puc = CATEGORIA_DECORACION
+    categoria = db.scalar(
+        select(CategoriaGasto).where(
+            CategoriaGasto.sede_id == ctx.sede_id, CategoriaGasto.nombre == nombre
+        )
+    )
+    if categoria is None:
+        categoria = CategoriaGasto(
+            id=uuid.uuid4(), sede_id=ctx.sede_id, nombre=nombre, cuenta_puc=puc
+        )
+        db.add(categoria)
+        db.flush()
+    return categoria
+
+
+def crear(
+    db: Session, ctx: Contexto, datos: GastoCrear, encargo_id: uuid.UUID | None = None
+) -> Gasto:
     # Quien solo tiene gastos.crear_caja (cajero) registra únicamente gastos pagados de la caja.
     if datos.fuente != "caja" and "gastos.crear" not in ctx.permisos:
         raise SinPermiso("gastos.crear")
@@ -92,6 +112,7 @@ def crear(db: Session, ctx: Contexto, datos: GastoCrear) -> Gasto:
         metodo_pago_id=metodo.id,
         fuente=datos.fuente,
         proveedor_id=datos.proveedor_id,
+        encargo_id=encargo_id,
         soporte_url=datos.soporte_url,
         usuario_id=ctx.usuario_id,
     )
@@ -139,6 +160,8 @@ def salida(db: Session, g: Gasto) -> GastoSalida:
     s.categoria, s.cuenta_puc = cat.nombre, cat.cuenta_puc
     s.metodo = db.scalar(select(MetodoPago.nombre).where(MetodoPago.id == g.metodo_pago_id))
     s.usuario = db.scalar(select(Usuario.nombre).where(Usuario.id == g.usuario_id))
+    if g.encargo_id:
+        s.encargo_numero = db.scalar(select(Encargo.numero).where(Encargo.id == g.encargo_id))
     return s
 
 
