@@ -9,16 +9,28 @@ from app.core.deps import Contexto, requiere_alguno
 from app.modules.caja.service import caja_abierta
 from app.modules.reportes.esquemas import Reporte
 from app.modules.reportes.periodo import SIN_CAJA, Periodo, resolver_periodo
-from app.modules.reportes.tablas import REPORTES
+from app.modules.reportes.tablas import REPORTES as REPORTES_VENTAS
+from app.modules.reportes.tablas_dinero import REPORTES_DINERO
 from app.shared.errores import NoEncontrado, SinPermiso
 
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
 lector = requiere_alguno("reportes.ver", "reportes.ver_caja_propia", "reportes.ver_inventario")
 
+REPORTES = REPORTES_VENTAS | REPORTES_DINERO
+
+_TODO = frozenset({"reportes.ver"})
+_CAJA = frozenset({"reportes.ver", "reportes.ver_caja_propia"})
 # Qué permisos abren cada reporte. El cajero (ver_caja_propia) solo ve su caja abierta.
 ACCESO: dict[str, frozenset[str]] = {
-    "ventas": frozenset({"reportes.ver", "reportes.ver_caja_propia"}),
+    "ventas": _CAJA,
+    "cierres": _CAJA,
+    "gastos": _TODO,
+    "flujo-caja": _TODO,
+    "propinas": _TODO,
+    "domicilios": _TODO,
+    "descuentos-cortesias": _TODO,
+    "ingresos-cancelacion": _TODO,
 }
 
 
