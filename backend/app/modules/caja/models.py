@@ -92,3 +92,7 @@ class CajaArqueo(Base, Operativo):
     esperado: Mapped[int] = mapped_column(MontoPesos())
     contado: Mapped[int] = mapped_column(MontoPesos())
     diferencia: Mapped[int] = mapped_column(MontoPesos())
+
+
+# Reportes por sede y fecha (fase 4, migración 0010).
+Index("ix_caja_movimientos_sede_fecha", CajaMovimiento.sede_id, CajaMovimiento.fecha)

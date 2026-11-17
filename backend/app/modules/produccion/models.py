@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, func
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.modelo import Base, Operativo
@@ -26,3 +26,7 @@ class Produccion(Base, Operativo):
     anulada_en: Mapped[datetime | None]
     anulada_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
     motivo_anulacion: Mapped[str | None] = mapped_column(String(200))
+
+
+# Reportes por sede y fecha (fase 4, migración 0010).
+Index("ix_producciones_sede_fecha", Produccion.sede_id, Produccion.fecha)
