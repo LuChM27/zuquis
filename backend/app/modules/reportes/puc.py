@@ -8,8 +8,8 @@ tiene código, sale como "Sin código" para que salte a la vista.
 
 from collections import defaultdict
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import exists, func, select
+from sqlalchemy.orm import Session, aliased
 
 from app.modules.caja.models import CajaMovimiento
 from app.modules.configuracion.models import MetodoPago
@@ -129,6 +129,7 @@ def movimientos(db: Session, p: Periodo) -> list[dict]:
         agregar(d, f"Gasto · {categoria}", cuenta, monto, n)
 
     dia = _dia(CajaMovimiento.fecha)
+    reverso = aliased(CajaMovimiento)
     for d, metodo, cuenta, monto in db.execute(
         select(dia, MetodoPago.nombre, MetodoPago.cuenta_puc, func.sum(CajaMovimiento.monto))
         .join(MetodoPago, MetodoPago.id == CajaMovimiento.metodo_pago_id)
@@ -137,6 +138,12 @@ def movimientos(db: Session, p: Periodo) -> list[dict]:
             CajaMovimiento.fecha >= inicio,
             CajaMovimiento.fecha < fin,
             CajaMovimiento.tipo.in_(TIPOS_RECIBIDO),
+            # Lo que después se anuló (venta o abono con su reverso) no es dinero recibido.
+            ~exists().where(
+                reverso.tipo == "reverso_anulacion",
+                reverso.referencia_tipo == CajaMovimiento.referencia_tipo,
+                reverso.referencia_id == CajaMovimiento.referencia_id,
+            ),
             CajaMovimiento.monto > 0,
         )
         .group_by(dia, MetodoPago.nombre, MetodoPago.cuenta_puc)
