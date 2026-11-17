@@ -7,6 +7,7 @@ from app.modules.reportes.cifras import descuento_global, totales, ventas_por
 from app.modules.reportes.periodo import Periodo
 from app.modules.usuarios.models import UsuarioRol
 from tests.conftest import SEDE_PRINCIPAL, rol_base
+from tests.fixtures_encargos import abonar, cancelar, crear_encargo, torta
 from tests.fixtures_reportes import cortesia, malteada, reporte, seccion, vendida
 from tests.fixtures_ventas import API, venta_mockup
 
@@ -168,3 +169,16 @@ def test_cajero_sin_caja_abierta_ve_reporte_vacio(cliente, crear_usuario, login)
     r = reporte(cliente, cajero, "ventas", HOY, HOY)
     assert r.status_code == 200, r.text
     assert all(s["filas"] == [] for s in r.json()["secciones"][1:])
+
+
+def test_cajero_no_ve_cifras_de_toda_la_sede(cliente, admin, cliente_a, metodos, reloj, db):
+    """Con la caja limitada, los ingresos por cancelación y las mermas (de la sede) son 0."""
+    _abrir(cliente, admin, reloj)
+    e = crear_encargo(cliente, admin, torta(cliente_a["id"])).json()
+    assert abonar(cliente, admin, e, 40000, metodos["Efectivo"]).status_code == 201
+    datos = {"decision": "devuelve_parcial", "monto_devuelto": 25000, "motivo": "Cambio"}
+    assert cancelar(cliente, admin, e, datos).status_code == 200
+    assert totales(db, _dia()).ingresos_cancelacion == 15000
+    sesion = cliente.get(f"{API}/caja/actual", headers=admin).json()["sesion"]["id"]
+    p = Periodo(sede_id=SEDE_PRINCIPAL, desde=HOY, hasta=HOY, caja_sesion_id=sesion)
+    assert (totales(db, p).mermas, totales(db, p).ingresos_cancelacion) == (0, 0)

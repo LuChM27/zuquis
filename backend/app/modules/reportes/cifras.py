@@ -91,7 +91,6 @@ def _suma(expr):
 
 
 def totales(db: Session, p: Periodo) -> Totales:
-    inicio, fin = p.limites()
     cortesia = es_cortesia()
     v = db.execute(
         select(
@@ -115,19 +114,11 @@ def totales(db: Session, p: Periodo) -> Totales:
     if p.caja_sesion_id:
         gastos_filtro.append(Gasto.caja_sesion_id == p.caja_sesion_id)
     gastos = db.scalar(select(_suma(Gasto.monto)).where(*gastos_filtro))
-    mermas = db.scalar(
-        select(_suma(Merma.costo_total)).where(
-            Merma.sede_id == p.sede_id, Merma.fecha >= inicio, Merma.fecha < fin
-        )
-    )
-    retenido = db.scalar(
-        select(_suma(Encargo.monto_retenido)).where(
-            Encargo.sede_id == p.sede_id,
-            Encargo.estado == "cancelado",
-            Encargo.cancelado_en >= inicio,
-            Encargo.cancelado_en < fin,
-        )
-    )
+    if p.caja_sesion_id:
+        # Mermas y cancelaciones son de la sede, no de una caja: el cajero no las ve.
+        mermas = retenido = 0
+    else:
+        mermas, retenido = _mermas_y_retenido(db, p)
     return Totales(
         ventas=int(v[0]),
         n_ventas=int(v[1]),
@@ -144,21 +135,35 @@ def totales(db: Session, p: Periodo) -> Totales:
     )
 
 
-def descuento_global(db: Session, p: Periodo) -> int:
-    """Descuentos sobre el total de la venta (no repartidos por línea), sin cortesías."""
-    por_linea = (
-        select(_suma(VentaItem.descuento))
-        .where(VentaItem.venta_id == Venta.id)
-        .correlate(Venta)
-        .scalar_subquery()
-    )
-    return int(
-        db.scalar(
-            select(_suma(Venta.descuento_total - por_linea)).where(
-                *_del_periodo(p), not_(es_cortesia())
-            )
+def _mermas_y_retenido(db: Session, p: Periodo) -> tuple[int, int]:
+    inicio, fin = p.limites()
+    mermas = db.scalar(
+        select(_suma(Merma.costo_total)).where(
+            Merma.sede_id == p.sede_id, Merma.fecha >= inicio, Merma.fecha < fin
         )
     )
+    retenido = db.scalar(
+        select(_suma(Encargo.monto_retenido)).where(
+            Encargo.sede_id == p.sede_id,
+            Encargo.estado == "cancelado",
+            Encargo.cancelado_en >= inicio,
+            Encargo.cancelado_en < fin,
+        )
+    )
+    return int(mermas), int(retenido)
+
+
+def descuento_global(db: Session, p: Periodo) -> int:
+    """Descuentos sobre el total de la venta (no repartidos por línea), sin cortesías: el
+    descuento total de las ventas menos el de sus líneas."""
+    ventas = (*_del_periodo(p), not_(es_cortesia()))
+    total = db.scalar(select(_suma(Venta.descuento_total)).where(*ventas))
+    por_linea = db.scalar(
+        select(_suma(VentaItem.descuento))
+        .join(Venta, Venta.id == VentaItem.venta_id)
+        .where(*ventas)
+    )
+    return int(total) - int(por_linea)
 
 
 def _por_venta(db: Session, p: Periodo, clave, etiqueta=None) -> list[FilaVentas]:
@@ -183,11 +188,14 @@ def _por_venta(db: Session, p: Periodo, clave, etiqueta=None) -> list[FilaVentas
 
 
 def _costo_mods():
+    """Costo de los modificadores por línea, agrupado una vez (se une con LEFT JOIN)."""
     return (
-        select(_suma(VentaItemModificador.costo_total))
-        .where(VentaItemModificador.venta_item_id == VentaItem.id)
-        .correlate(VentaItem)
-        .scalar_subquery()
+        select(
+            VentaItemModificador.venta_item_id.label("item_id"),
+            func.sum(VentaItemModificador.costo_total).label("costo"),
+        )
+        .group_by(VentaItemModificador.venta_item_id)
+        .subquery()
     )
 
 
@@ -203,16 +211,18 @@ def _nombre_item():
 
 def _por_item(db: Session, p: Periodo, clave, etiqueta) -> list[FilaVentas]:
     """Agrupaciones por línea (producto, categoría), sin cortesías."""
+    mods = _costo_mods()
     filas = db.execute(
         select(
             clave,
             etiqueta,
             _suma(VentaItem.subtotal),
-            _suma(VentaItem.costo_total + _costo_mods()),
+            _suma(VentaItem.costo_total + func.coalesce(mods.c.costo, 0)),
             _suma(VentaItem.cantidad),
             func.count(func.distinct(VentaItem.venta_id)),
         )
         .join(Venta, Venta.id == VentaItem.venta_id)
+        .outerjoin(mods, mods.c.item_id == VentaItem.id)
         .outerjoin(Producto, Producto.id == VentaItem.producto_id)
         .outerjoin(Categoria, Categoria.id == Producto.categoria_id)
         .where(*_del_periodo(p), not_(es_cortesia()))
@@ -251,8 +261,8 @@ def ventas_por(db: Session, p: Periodo, por: AgrupaVentas) -> list[FilaVentas]:
         clave = func.coalesce(cast(VentaItem.producto_id, String), _nombre_item())
         return _por_item(db, p, clave, _nombre_item())
     if por == "categoria":
-        nombre = func.coalesce(Categoria.nombre, literal("Sin categoría"))
-        return _por_item(db, p, nombre, nombre)
+        clave = func.coalesce(cast(Categoria.id, String), literal("sin"))
+        return _por_item(db, p, clave, func.coalesce(Categoria.nombre, literal("Sin categoría")))
     raise ValueError(por)
 
 
