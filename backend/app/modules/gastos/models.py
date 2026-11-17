@@ -2,12 +2,16 @@
 
 import uuid
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.modelo import Base, Operativo
 from app.shared.dinero import MontoPesos
+
+if TYPE_CHECKING:
+    from app.modules.encargos.models import Encargo
 
 # Categorías iniciales (docs/puc-propuesta.md). Cortesías y mermas no van: el sistema las
 # calcula por su costo.
@@ -26,6 +30,9 @@ CATEGORIAS_INICIALES = (
     ("Comisiones y gastos bancarios", "5305"),
     ("Otros gastos", "5195"),
 )
+# Materiales comprados para decorar un encargo; sus gastos van ligados al encargo. Va aparte de
+# CATEGORIAS_INICIALES porque la migración 0006 siembra esas y esta llegó en la 0008.
+CATEGORIA_DECORACION = ("Materiales de decoración", "5195")
 
 
 class CategoriaGasto(Base, Operativo):
@@ -35,6 +42,11 @@ class CategoriaGasto(Base, Operativo):
     nombre: Mapped[str] = mapped_column(String(80))
     cuenta_puc: Mapped[str | None] = mapped_column(String(10))
     activa: Mapped[bool] = mapped_column(default=True)
+
+    @property
+    def sistema(self) -> bool:
+        """La usan los gastos de decoración de encargos: se busca por su nombre."""
+        return self.nombre == CATEGORIA_DECORACION[0]
 
 
 class Gasto(Base, Operativo):
@@ -56,6 +68,9 @@ class Gasto(Base, Operativo):
     fuente: Mapped[str] = mapped_column(String(10))
     caja_sesion_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("caja_sesiones.id"))
     proveedor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("proveedores.id"))
+    encargo_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("encargos.id"), index=True)
+    # Solo para leer el número del encargo sin una consulta por gasto.
+    encargo: Mapped["Encargo | None"] = relationship(lazy="selectin", viewonly=True)
     soporte_url: Mapped[str | None] = mapped_column(String(300))
     estado: Mapped[str] = mapped_column(String(10), default="registrado")
     usuario_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("usuarios.id"))

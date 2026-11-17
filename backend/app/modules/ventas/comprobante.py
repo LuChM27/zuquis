@@ -47,6 +47,8 @@ def html(db: Session, ctx: Contexto, v: VentaSalida, formato: str) -> str:
         totales.append(("Propina (aparte, no es venta)", pesos(v.propina), "suave"))
     if v.valor_domicilio:
         totales.append(("Domicilio (del domiciliario)", pesos(v.valor_domicilio), "suave"))
+    if v.abonos_aplicados:
+        totales.append(("Abonos ya recibidos", pesos(-v.abonos_aplicados), "suave"))
     totales.append(("Total cobrado", pesos(v.cobrado), "fuerte grande"))
     pagos = "".join(
         f"<tr><td>{e(p.metodo)}"
@@ -58,7 +60,9 @@ def html(db: Session, ctx: Contexto, v: VentaSalida, formato: str) -> str:
         pagos += (
             f'<tr><td class="fuerte">Cambio</td><td class="n fuerte">{pesos(v.cambio)}</td></tr>'
         )
-    if not v.pagos:
+    if not v.pagos and v.abonos_aplicados:
+        pagos = '<tr><td class="suave">Pagado con los abonos del encargo.</td><td></td></tr>'
+    elif not v.pagos:
         pagos = '<tr><td class="suave">Cortesía: sin cobro.</td><td></td></tr>'
     anulada = ""
     if v.estado == "anulada":
@@ -66,6 +70,7 @@ def html(db: Session, ctx: Contexto, v: VentaSalida, formato: str) -> str:
     tabla_totales = "".join(
         f'<tr><td class="{c}">{t}</td><td class="n {c}">{m}</td></tr>' for t, m, c in totales
     )
+    encargo = f" · Encargo n.º {v.encargo_numero:04d}" if v.encargo_numero else ""
     cuerpo = f"""
 <div class="centro">
   <img class="logo" src="{logo_data_uri()}" alt="">
@@ -76,7 +81,7 @@ def html(db: Session, ctx: Contexto, v: VentaSalida, formato: str) -> str:
 <table>
   <tr><td class="fuerte grande">Comprobante n.º {v.numero:04d}</td>
       <td class="n suave">{fecha_hora(v.fecha)}</td></tr>
-  <tr><td class="suave">{SERVICIO.get(v.tipo_servicio, "")}</td>
+  <tr><td class="suave">{SERVICIO.get(v.tipo_servicio, "")}{encargo}</td>
       <td class="n suave">Atendió: {e(v.cajero)}</td></tr>
 </table>
 {anulada}

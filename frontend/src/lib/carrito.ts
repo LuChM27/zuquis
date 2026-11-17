@@ -32,16 +32,27 @@ export interface LineaCarrito {
   descuento: DescuentoEntrada | null
 }
 
+/** A quién se le vende y, si es a domicilio, quién lo lleva y a dónde (RF-13). */
+export interface DatosEntrega {
+  clienteId: string
+  domiciliarioId: string
+  direccion: string
+  telefono: string
+}
+
 export interface Carrito {
   tipoServicio: TipoServicio
   lineas: LineaCarrito[]
   descuento: DescuentoEntrada | null
   propina: number
   valorDomicilio: number
+  entrega: DatosEntrega
 }
 
+export const entregaVacia = (): DatosEntrega => ({ clienteId: '', domiciliarioId: '', direccion: '', telefono: '' })
+
 export function carritoVacio(tipoServicio: TipoServicio = 'local'): Carrito {
-  return { tipoServicio, lineas: [], descuento: null, propina: 0, valorDomicilio: 0 }
+  return { tipoServicio, lineas: [], descuento: null, propina: 0, valorDomicilio: 0, entrega: entregaVacia() }
 }
 
 let consecutivoLinea = 0
@@ -163,8 +174,17 @@ export function cuerpoVenta(
   c: Carrito,
   pagos: { metodoId: string; monto: number; recibido?: number | null }[],
 ): Record<string, unknown> {
+  const aDomicilio = c.tipoServicio === 'domicilio'
   return {
     tipo_servicio: c.tipoServicio,
+    cliente_id: c.entrega.clienteId || null,
+    domicilio: aDomicilio
+      ? {
+          domiciliario_id: c.entrega.domiciliarioId,
+          direccion: c.entrega.direccion.trim(),
+          telefono: c.entrega.telefono.trim() || null,
+        }
+      : null,
     items: c.lineas.map((l) => ({
       producto_id: l.producto.id,
       cantidad: String(l.cantidad),
@@ -174,7 +194,7 @@ export function cuerpoVenta(
     })),
     descuento: c.descuento,
     propina: c.propina,
-    valor_domicilio: c.tipoServicio === 'domicilio' ? c.valorDomicilio : 0,
+    valor_domicilio: aDomicilio ? c.valorDomicilio : 0,
     pagos: pagos
       .filter((p) => p.monto > 0)
       .map((p) => ({ metodo_pago_id: p.metodoId, monto: p.monto, recibido: p.recibido ?? null })),

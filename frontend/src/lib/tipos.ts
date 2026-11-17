@@ -426,7 +426,8 @@ export interface Autorizacion {
 
 export interface VentaItem {
   id: string
-  producto_id: string
+  /** null: ítem personalizado de un encargo (solo descripción y precio). */
+  producto_id: string | null
   producto: string
   cantidad: string
   precio_unitario: number
@@ -445,6 +446,9 @@ export interface Venta {
   caja_sesion_id: string
   tipo_servicio: TipoServicio
   cliente_id: string | null
+  cliente?: string | null
+  encargo_id?: string | null
+  encargo_numero?: number | null
   items: VentaItem[]
   subtotal: number
   descuento_total: number
@@ -454,6 +458,8 @@ export interface Venta {
   total: number
   propina: number
   valor_domicilio: number
+  /** Abonos del encargo ya recibidos antes de la entrega: no se vuelven a cobrar. */
+  abonos_aplicados?: number
   cobrado: number
   cambio: number
   costo_total: number
@@ -509,6 +515,7 @@ export interface VistaCierre {
   efectivo_esperado: number
   resumen: ResumenTurno
   domicilios_sin_liquidar: number
+  domicilios?: LiquidacionTurno | null
 }
 
 export interface SesionResumen extends SesionCaja {
@@ -531,6 +538,8 @@ export interface CategoriaGasto {
   nombre: string
   cuenta_puc: string | null
   activa: boolean
+  /** La usa el sistema (gastos de decoración): no se renombra ni se desactiva. */
+  sistema: boolean
 }
 
 export interface Gasto {
@@ -546,6 +555,8 @@ export interface Gasto {
   fuente: FuenteGasto
   caja_sesion_id: string | null
   proveedor_id: string | null
+  encargo_id: string | null
+  encargo_numero: number | null
   soporte_url: string | null
   estado: 'registrado' | 'anulado'
   usuario: string | null
@@ -562,6 +573,130 @@ export interface ResumenVentas {
   descuentos: number
   propinas: number
   domicilios: number
+  /** Abonos retenidos de encargos cancelados: ingreso aparte, no venta (RN-22). */
+  ingresos_cancelacion?: number
   por_metodo: { metodo_pago_id: string; metodo: string; monto: number }[]
-  productos: { producto_id: string; producto: string; cantidad: string; valor: number }[]
+  productos: { producto_id: string | null; producto: string; cantidad: string; valor: number }[]
+}
+
+// --- Clientes, domicilios y encargos (Fase 3) -----------------------------------------------
+
+export interface Cliente {
+  id: string
+  nombre: string
+  telefono: string | null
+  direccion: string | null
+  notas: string | null
+  autoriza_datos: boolean
+  autorizo_en: string | null
+  activo: boolean
+}
+
+export interface HistorialCliente {
+  cliente: Cliente
+  ventas: { id: string; numero: number; fecha: string; total: number; estado: string; tipo_servicio: TipoServicio }[]
+  encargos: { id: string; numero: number; descripcion: string; fecha_entrega: string; total: number; estado: EstadoEncargo }[]
+  domicilios: { id: string; fecha: string; direccion: string; valor: number; estado: string }[]
+  total_comprado: number
+}
+
+export interface Domiciliario {
+  id: string
+  nombre: string
+  telefono: string | null
+  activo: boolean
+}
+
+export type EstadoDomicilio = 'pendiente' | 'en_camino' | 'entregado' | 'cancelado'
+
+export interface Domicilio {
+  id: string
+  fecha: string
+  venta_id: string
+  venta_numero: number
+  encargo_id: string | null
+  encargo_numero: number | null
+  cliente_id: string | null
+  cliente: string | null
+  direccion: string
+  telefono: string | null
+  domiciliario_id: string
+  domiciliario: string
+  valor: number
+  total_venta: number
+  estado: EstadoDomicilio
+  liquidado_en: string | null
+}
+
+export interface LiquidacionDomiciliario {
+  domiciliario_id: string
+  domiciliario: string
+  domicilios: number
+  cobrado: number
+  entregado: number
+  pendiente: number
+}
+
+export interface LiquidacionTurno {
+  domicilios: number
+  cobrado: number
+  entregado: number
+  pendiente: number
+  domiciliarios: LiquidacionDomiciliario[]
+}
+
+export type EstadoEncargo = 'pendiente' | 'en_produccion' | 'listo' | 'entregado' | 'cancelado'
+export type TipoEntrega = 'recoge' | 'domicilio'
+export type DecisionCancelacion = 'devuelve_total' | 'devuelve_parcial' | 'retiene'
+
+export interface Encargo {
+  id: string
+  numero: number
+  cliente: { id: string; nombre: string; telefono: string | null; direccion: string | null }
+  descripcion: string
+  fecha_entrega: string
+  tipo_entrega: TipoEntrega
+  direccion_entrega: string | null
+  observaciones: string | null
+  items: {
+    id: string
+    producto_id: string | null
+    descripcion: string
+    cantidad: string
+    precio: number
+    subtotal: number
+    decoracion: string | null
+    decoracion_precio: number | null
+  }[]
+  total: number
+  abonado: number
+  saldo: number
+  estado: EstadoEncargo
+  editable: boolean
+  abonos: {
+    id: string
+    monto: number
+    metodo_pago_id: string
+    metodo: string
+    fecha: string
+    estado: 'vigente' | 'anulado'
+    motivo_anulacion: string | null
+  }[]
+  creado_en: string
+  venta_id: string | null
+  venta_numero: number | null
+  entregado_en: string | null
+  decision_cancelacion: DecisionCancelacion | null
+  monto_devuelto: number
+  monto_retenido: number
+  motivo_cancelacion: string | null
+  cancelado_en: string | null
+  decoracion_cobrada: number
+  gasto_decoracion: number
+  gastos_decoracion: { id: string; fecha: string; descripcion: string; monto: number; fuente: FuenteGasto; estado: 'registrado' | 'anulado' }[]
+}
+
+export interface ConteoDia {
+  fecha: string
+  encargos: number
 }

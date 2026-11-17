@@ -123,25 +123,7 @@ function FormCierre({
         <Paso numero={3} texto="Confirmar y cerrar" estado={listo ? 'actual' : 'pendiente'} />
       </ol>
 
-      <Tarjeta className="mt-5 flex flex-wrap items-center justify-between gap-4 px-6 py-5">
-        <div className="min-w-0">
-          <TituloTarjeta>Domicilios del turno</TituloTarjeta>
-          <p className="mt-1 text-[15px] text-cafe-suave">
-            {pendientes > 0
-              ? `${pendientes} domicilios sin liquidar: entrégale al domiciliario lo suyo antes de cerrar.`
-              : 'Lo cobrado por domicilios es dinero del domiciliario, no cuenta como venta.'}
-          </p>
-        </div>
-        {pendientes > 0 ? (
-          <Chip tono="peligro">{pendientes} sin liquidar</Chip>
-        ) : (
-          <span className="rounded-control bg-exito-fondo px-6 py-3.5 text-[16px] font-semibold text-exito-texto">
-            {vista.resumen.domicilios_entregados > 0
-              ? `Entregados ${pesos(vista.resumen.domicilios_entregados)} al domiciliario`
-              : 'Nada por liquidar'}
-          </span>
-        )}
-      </Tarjeta>
+      <DomiciliosDelTurno vista={vista} />
 
       <Tarjeta className="mt-5 px-6 py-6">
         <TituloTarjeta>Arqueo por método de pago</TituloTarjeta>
@@ -252,6 +234,69 @@ function FormCierre({
         }}
       />
     </div>
+  )
+}
+
+/** Paso 1 (RN-18): lo cobrado por domicilios se le entrega a cada domiciliario antes de contar. */
+function DomiciliosDelTurno({ vista }: { vista: VistaCierre }) {
+  const { avisar } = useAvisos()
+  const clienteQuery = useQueryClient()
+  const turno = vista.domicilios
+  const liquidar = useMutation({
+    mutationFn: (d: { domiciliario_id: string; pendiente: number }) =>
+      api('/caja/liquidar-domicilios', { method: 'POST', json: { domiciliario_id: d.domiciliario_id, monto: d.pendiente } }),
+    onSuccess: () => {
+      void clienteQuery.invalidateQueries({ queryKey: ['caja'] })
+      void clienteQuery.invalidateQueries({ queryKey: ['domicilios'] })
+    },
+    onError: (e) => {
+      avisar(e.message, 'error')
+      void clienteQuery.invalidateQueries({ queryKey: ['caja', 'cierre'] })
+    },
+  })
+  const cantidad = turno?.domicilios ?? 0
+  const pendientes = (turno?.domiciliarios ?? []).filter((d) => d.pendiente > 0)
+  return (
+    <Tarjeta className="mt-5 px-6 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="min-w-0">
+          <TituloTarjeta>Domicilios del turno</TituloTarjeta>
+          <p className="mt-1 text-[15px] text-cafe-suave">
+            {cantidad === 0
+              ? 'No hubo domicilios en este turno.'
+              : `${cantidad} ${cantidad === 1 ? 'domicilio' : 'domicilios'} · ${pesos(turno?.cobrado ?? 0)} cobrados a clientes · es dinero del domiciliario, no cuenta como venta`}
+          </p>
+        </div>
+        {pendientes.length === 0 ? (
+          <span className="rounded-control bg-exito-fondo px-6 py-3.5 text-[16px] font-semibold text-exito-texto">
+            {(turno?.entregado ?? 0) > 0 ? `Entregados ${pesos(turno?.entregado ?? 0)} al domiciliario` : 'Nada por liquidar'}
+          </span>
+        ) : (
+          <Chip tono="peligro">Falta entregar {pesos(turno?.pendiente ?? 0)}</Chip>
+        )}
+      </div>
+      {pendientes.length > 0 && (
+        <ul aria-label="Por entregar a cada domiciliario" className="mt-4 grid gap-2">
+          {pendientes.map((d) => (
+            <li key={d.domiciliario_id} className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-linea px-4 py-3">
+              <span>
+                <span className="block text-[17px] font-semibold">{d.domiciliario}</span>
+                <span className="text-sm text-cafe-suave">
+                  {d.domicilios} {d.domicilios === 1 ? 'domicilio' : 'domicilios'}
+                  {d.entregado > 0 && ` · ya se le entregaron ${pesos(d.entregado)}`}
+                </span>
+              </span>
+              <Boton disabled={liquidar.isPending} onClick={() => liquidar.mutate(d)}>
+                Entregar {pesos(d.pendiente)} a {d.domiciliario}
+              </Boton>
+            </li>
+          ))}
+        </ul>
+      )}
+      {pendientes.length > 0 && (
+        <p className="mt-3 text-sm text-cafe-suave">Sale del efectivo de la caja aunque el cliente haya pagado por transferencia.</p>
+      )}
+    </Tarjeta>
   )
 }
 

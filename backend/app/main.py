@@ -14,8 +14,11 @@ from app.modules.auditoria.router import router as auditoria_router
 from app.modules.auth.router import router as auth_router
 from app.modules.caja.router import router as caja_router
 from app.modules.carta.router import router as carta_router
+from app.modules.clientes.router import router as clientes_router
 from app.modules.compras.router import router as compras_router
 from app.modules.configuracion.router import router as configuracion_router
+from app.modules.domicilios.router import router as domicilios_router
+from app.modules.encargos.router import router as encargos_router
 from app.modules.gastos.router import router as gastos_router
 from app.modules.inventario.router import router as inventario_router
 from app.modules.produccion.router import router as produccion_router
@@ -72,6 +75,9 @@ def crear_app(sincronizar_al_iniciar: bool = True) -> FastAPI:
         caja_router,
         ventas_router,
         gastos_router,
+        clientes_router,
+        domicilios_router,
+        encargos_router,
     ):
         api.include_router(router)
     app.include_router(api)

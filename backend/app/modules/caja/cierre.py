@@ -46,9 +46,16 @@ CONCEPTOS_EFECTIVO = (
 
 
 def domicilios_sin_liquidar(db: Session, sesion: CajaSesion) -> int:
-    """RN-18: no se cierra con domicilios sin liquidar. Los domicilios llegan en la Fase 3 (#40);
-    hasta entonces no hay ninguno pendiente."""
-    return 0
+    """RN-18: no se cierra con domicilios sin liquidar."""
+    from app.modules.domicilios.service import sin_liquidar
+
+    return sin_liquidar(db, sesion)
+
+
+def _liquidacion(db: Session, sesion: CajaSesion):
+    from app.modules.domicilios.service import liquidacion
+
+    return liquidacion(db, sesion)
 
 
 def _sumas_por_tipo(db: Session, sesion_id: uuid.UUID, solo_efectivo: bool) -> dict[str, int]:
@@ -100,6 +107,7 @@ def vista_previa(db: Session, ctx: Contexto) -> VistaCierre:
         efectivo_esperado=sum(e.esperado for e in esperado if e.es_efectivo),
         resumen=_resumen(db, sesion),
         domicilios_sin_liquidar=domicilios_sin_liquidar(db, sesion),
+        domicilios=_liquidacion(db, sesion),
     )
 
 

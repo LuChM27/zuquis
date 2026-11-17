@@ -12,7 +12,12 @@ from app.modules.auditoria.service import auditar
 from app.modules.auth.models import Usuario
 from app.modules.caja import service as caja
 from app.modules.configuracion.models import MetodoPago
-from app.modules.gastos.models import CATEGORIAS_INICIALES, CategoriaGasto, Gasto
+from app.modules.gastos.models import (
+    CATEGORIA_DECORACION,
+    CATEGORIAS_INICIALES,
+    CategoriaGasto,
+    Gasto,
+)
 from app.modules.gastos.schemas import CategoriaCrear, CategoriaEditar, GastoCrear, GastoSalida
 from app.shared.bd import guardar_unico
 from app.shared.errores import Conflicto, NoEncontrado, SinPermiso
@@ -24,7 +29,7 @@ DUPLICADA = "Ya existe una categoría de gasto con ese nombre."
 
 def sembrar_categorias(db: Session, sede_id: uuid.UUID) -> None:
     """Categorías iniciales para una sede nueva."""
-    for nombre, puc in CATEGORIAS_INICIALES:
+    for nombre, puc in (*CATEGORIAS_INICIALES, CATEGORIA_DECORACION):
         db.add(CategoriaGasto(sede_id=sede_id, nombre=nombre, cuenta_puc=puc))
 
 
@@ -60,6 +65,13 @@ def editar_categoria(
 ) -> CategoriaGasto:
     c = _categoria(db, ctx, categoria_id)
     cambios = datos.model_dump(exclude_unset=True)
+    renombra = "nombre" in cambios and cambios["nombre"] != c.nombre
+    if c.sistema and (renombra or cambios.get("activa") is False):
+        raise Conflicto(
+            "CATEGORIA_DEL_SISTEMA",
+            "Esta categoría la usan los gastos de decoración de los encargos: "
+            "no se puede renombrar ni desactivar.",
+        )
     for campo, valor in cambios.items():
         setattr(c, campo, valor)
     guardar_unico(db, mensaje=DUPLICADA)
@@ -67,7 +79,26 @@ def editar_categoria(
     return c
 
 
-def crear(db: Session, ctx: Contexto, datos: GastoCrear) -> Gasto:
+def categoria_decoracion(db: Session, ctx: Contexto) -> CategoriaGasto:
+    """La categoría de los materiales de decoración de encargos; si no está, se crea."""
+    nombre, puc = CATEGORIA_DECORACION
+    categoria = db.scalar(
+        select(CategoriaGasto).where(
+            CategoriaGasto.sede_id == ctx.sede_id, CategoriaGasto.nombre == nombre
+        )
+    )
+    if categoria is None:
+        categoria = CategoriaGasto(
+            id=uuid.uuid4(), sede_id=ctx.sede_id, nombre=nombre, cuenta_puc=puc
+        )
+        db.add(categoria)
+        db.flush()
+    return categoria
+
+
+def crear(
+    db: Session, ctx: Contexto, datos: GastoCrear, encargo_id: uuid.UUID | None = None
+) -> Gasto:
     # Quien solo tiene gastos.crear_caja (cajero) registra únicamente gastos pagados de la caja.
     if datos.fuente != "caja" and "gastos.crear" not in ctx.permisos:
         raise SinPermiso("gastos.crear")
@@ -87,6 +118,7 @@ def crear(db: Session, ctx: Contexto, datos: GastoCrear) -> Gasto:
         metodo_pago_id=metodo.id,
         fuente=datos.fuente,
         proveedor_id=datos.proveedor_id,
+        encargo_id=encargo_id,
         soporte_url=datos.soporte_url,
         usuario_id=ctx.usuario_id,
     )
@@ -134,6 +166,7 @@ def salida(db: Session, g: Gasto) -> GastoSalida:
     s.categoria, s.cuenta_puc = cat.nombre, cat.cuenta_puc
     s.metodo = db.scalar(select(MetodoPago.nombre).where(MetodoPago.id == g.metodo_pago_id))
     s.usuario = db.scalar(select(Usuario.nombre).where(Usuario.id == g.usuario_id))
+    s.encargo_numero = g.encargo.numero if g.encargo else None
     return s
 
 

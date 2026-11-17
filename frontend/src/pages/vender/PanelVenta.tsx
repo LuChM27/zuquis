@@ -5,6 +5,9 @@ import { alternarRegalo, calcular, esRegalo, pagosPara, quitarLinea, type Carrit
 import { unir } from '../../lib/clases'
 import { hora, pesos } from '../../lib/formato'
 import type { MetodoPago, TipoServicio } from '../../lib/tipos'
+import { telefonoLegible } from '../clientes/datos'
+import { SelectorCliente } from '../clientes/SelectorCliente'
+import { CamposDomicilio } from '../domicilios/CamposDomicilio'
 import { motivoNoCobrar, type Cobro } from './logica'
 
 const SERVICIOS: { valor: TipoServicio; texto: string }[] = [
@@ -101,12 +104,34 @@ export function PanelVenta({
       </div>
 
       {carrito.tipoServicio === 'domicilio' && (
-        <CampoDinero
-          className="mt-4"
-          etiqueta="Valor del domicilio"
-          valor={carrito.valorDomicilio || null}
-          alCambiar={(v) => alCambiar({ ...carrito, valorDomicilio: v ?? 0 })}
-        />
+        <div className="mt-4 grid gap-3 rounded-[14px] border border-linea p-4">
+          <SelectorCliente
+            opcional
+            valor={carrito.entrega.clienteId}
+            alCambiar={(c) =>
+              alCambiar({
+                ...carrito,
+                entrega: {
+                  ...carrito.entrega,
+                  clienteId: c?.id ?? '',
+                  // Al elegir el cliente se llenan sus datos; lo escrito a mano no se pisa.
+                  direccion: carrito.entrega.direccion || c?.direccion || '',
+                  telefono: carrito.entrega.telefono || telefonoLegible(c?.telefono),
+                },
+              })
+            }
+          />
+          <CamposDomicilio
+            datos={carrito.entrega}
+            alCambiar={(d) => alCambiar({ ...carrito, entrega: { ...carrito.entrega, ...d } })}
+          />
+          <CampoDinero
+            etiqueta="Valor del domicilio"
+            valor={carrito.valorDomicilio || null}
+            alCambiar={(v) => alCambiar({ ...carrito, valorDomicilio: v ?? 0 })}
+          />
+          <p className="text-sm text-cafe-suave">El valor del domicilio es del domiciliario: se le entrega al cerrar la caja.</p>
+        </div>
       )}
 
       {carrito.lineas.length === 0 ? (

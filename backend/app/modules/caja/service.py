@@ -58,6 +58,19 @@ def _metodo(db: Session, ctx: Contexto, metodo_id: uuid.UUID) -> MetodoPago:
     return m
 
 
+def efectivo_principal(db: Session, sede_id: uuid.UUID) -> uuid.UUID:
+    """El método en efectivo de la sede: de ahí salen los pagos a domiciliarios y las
+    devoluciones cuando no se indica otro."""
+    metodo = db.scalars(
+        select(MetodoPago.id)
+        .where(MetodoPago.sede_id == sede_id, MetodoPago.es_efectivo, MetodoPago.activo)
+        .order_by(MetodoPago.orden, MetodoPago.nombre)
+    ).first()
+    if metodo is None:
+        raise Conflicto("SIN_EFECTIVO", "No hay un método de pago en efectivo activo.")
+    return metodo
+
+
 def abrir(db: Session, ctx: Contexto, base_inicial: int) -> CajaSesion:
     if caja_abierta(db, ctx.sede_id) is not None:
         raise Conflicto(*YA_ABIERTA)

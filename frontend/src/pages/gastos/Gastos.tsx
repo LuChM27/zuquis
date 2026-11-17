@@ -11,16 +11,12 @@ import { useAvisos } from '../../components/usarAvisos'
 import { api } from '../../lib/api'
 import { fechaCorta, pesos } from '../../lib/formato'
 import type { CategoriaGasto, FuenteGasto, Gasto, MetodoPago, Pagina } from '../../lib/tipos'
+import { FUENTES } from './fuentes'
 import { hoyIso } from '../../lib/unidades'
 import { useImagen } from '../carta/utilidades'
 import { useCaja } from '../caja/usarCaja'
 import { CategoriasGasto } from './CategoriasGasto'
 
-const FUENTES: Record<FuenteGasto, { texto: string; ayuda: string }> = {
-  caja: { texto: 'De la caja', ayuda: 'Sale del dinero de la caja abierta y aparece en el cierre.' },
-  banco: { texto: 'Del banco', ayuda: 'Se pagó desde una cuenta del negocio; no toca la caja.' },
-  duenos: { texto: 'De los dueños', ayuda: 'Lo pagó un dueño de su bolsillo; no toca la caja.' },
-}
 const TAMANO = 20
 
 /** Gastos de caja, banco o dueños (RF-21 a RF-23) y sus categorías con cuenta PUC. */
@@ -317,8 +313,14 @@ function FormGasto({ alRegistrar }: { alRegistrar: (g: Gasto) => void }) {
           </Boton>
           {soporte && <p className="mt-1.5 text-sm text-exito-texto">Foto adjunta.</p>}
         </div>
+        {intento && metodos.data && !metodoId && (
+          <p role="alert" className="text-sm text-peligro-texto">
+            Elige con qué se pagó.
+          </p>
+        )}
         {cajaCerrada && <Aviso>No hay caja abierta: un gasto de caja necesita la caja abierta.</Aviso>}
-        <Boton type="submit" disabled={guardar.isPending || subiendo}>
+        {/* Sin los métodos de pago cargados no hay con qué registrar: el botón espera. */}
+        <Boton type="submit" disabled={guardar.isPending || subiendo || metodos.isPending}>
           {guardar.isPending ? 'Registrando…' : 'Registrar gasto'}
         </Boton>
       </form>
@@ -339,6 +341,8 @@ function DetalleGasto({ gasto }: { gasto: Gasto }) {
       avisar(gasto.fuente === 'caja' ? 'Gasto anulado: el dinero volvió a la caja abierta.' : 'Gasto anulado.')
       void clienteQuery.invalidateQueries({ queryKey: ['gastos'] })
       void clienteQuery.invalidateQueries({ queryKey: ['caja'] })
+      // Un gasto de decoración cuenta en el resumen de su encargo.
+      if (gasto.encargo_id) void clienteQuery.invalidateQueries({ queryKey: ['encargos'] })
     },
     onError: (e) => avisar(e.message, 'error'),
   })
@@ -348,6 +352,7 @@ function DetalleGasto({ gasto }: { gasto: Gasto }) {
     ['Fecha', fechaCorta(new Date(`${gasto.fecha}T12:00:00`))],
     ['Pagado', `${FUENTES[gasto.fuente].texto} · ${gasto.metodo ?? ''}`],
     ['Registró', gasto.usuario ?? '—'],
+    ...(gasto.encargo_numero ? ([['Encargo', `n.º ${String(gasto.encargo_numero).padStart(4, '0')}`]] as [string, string][]) : []),
   ]
   return (
     <PanelDetalle rotulo={gasto.estado === 'anulado' ? 'Gasto anulado' : 'Gasto'} titulo={gasto.descripcion}>

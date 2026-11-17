@@ -15,6 +15,7 @@ import type { Pagina, ResumenVentas, Venta } from '../../lib/tipos'
 import { hoyIso } from '../../lib/unidades'
 import { Cifra } from '../inventario/Indicadores'
 import { useComprobante } from '../vender/comprobante'
+import { ProductosVendidos } from './ProductosVendidos'
 
 const TAMANO = 25
 const SERVICIO: Record<string, string> = { local: 'En local', llevar: 'Para llevar', domicilio: 'Domicilio' }
@@ -27,7 +28,7 @@ export function Ventas() {
   const [params, setParams] = useSearchParams()
   const dia = params.get('dia') ?? hoyIso()
   const elegida = params.get('venta') ?? undefined
-  const [numero, setNumero] = useState('')
+  const [numero, setNumero] = useState(() => params.get('numero') ?? '')
   const fijar = (cambios: Record<string, string | null>) => {
     const siguiente = new URLSearchParams(params)
     for (const [k, v] of Object.entries(cambios)) {
@@ -100,17 +101,7 @@ function Resumen({ dia }: { dia: string }) {
             <Vacio>No hay ventas este día.</Vacio>
           ) : (
             <div className="mt-3 max-h-[340px] overflow-y-auto">
-              <Tabla columnas={[{ texto: 'Producto' }, { texto: 'Cantidad', derecha: true }, { texto: 'Valor', derecha: true }]}>
-                {r?.productos.map((p) => (
-                  <tr key={p.producto_id} className="border-b border-linea last:border-b-0">
-                    <Celda className="font-medium">{p.producto}</Celda>
-                    <Celda derecha>{cantidad(p.cantidad)}</Celda>
-                    <Celda derecha className="font-semibold">
-                      {pesos(p.valor)}
-                    </Celda>
-                  </tr>
-                ))}
-              </Tabla>
+              <ProductosVendidos productos={r?.productos ?? []} />
             </div>
           )}
         </Tarjeta>
@@ -266,7 +257,15 @@ function DetalleVenta({ venta }: { venta: Venta }) {
     <PanelDetalle
       rotulo={anulada ? 'Venta anulada' : 'Venta'}
       titulo={`Venta ${numeroVenta(venta.numero)}`}
-      subtitulo={`${fechaConDia(fecha)} · ${hora(fecha)} · ${SERVICIO[venta.tipo_servicio] ?? venta.tipo_servicio}${venta.cajero ? ` · ${venta.cajero}` : ''}`}
+      subtitulo={[
+        `${fechaConDia(fecha)} · ${hora(fecha)}`,
+        SERVICIO[venta.tipo_servicio] ?? venta.tipo_servicio,
+        venta.cliente,
+        venta.encargo_numero ? `Encargo n.º ${String(venta.encargo_numero).padStart(4, '0')}` : null,
+        venta.cajero,
+      ]
+        .filter(Boolean)
+        .join(' · ')}
     >
       {anulada && (
         <div className="mb-4">
@@ -330,6 +329,12 @@ function DetalleVenta({ venta }: { venta: Venta }) {
           <div className={fila}>
             <dt className="text-cafe-medio">Domicilio</dt>
             <dd>{pesos(venta.valor_domicilio)}</dd>
+          </div>
+        )}
+        {(venta.abonos_aplicados ?? 0) > 0 && (
+          <div className={fila}>
+            <dt className="text-cafe-medio">Abonos ya recibidos</dt>
+            <dd>−{pesos(venta.abonos_aplicados ?? 0)}</dd>
           </div>
         )}
       </dl>

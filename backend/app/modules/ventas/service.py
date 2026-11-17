@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, selectinload
 
@@ -20,8 +20,13 @@ from app.modules.auth.models import Usuario
 from app.modules.caja import service as caja
 from app.modules.carta.models import Modificador, Producto
 from app.modules.carta.service import receta_vigente
+from app.modules.clientes import service as clientes
+from app.modules.clientes.models import Cliente
 from app.modules.configuracion import service as configuracion
 from app.modules.configuracion.models import MetodoPago
+from app.modules.domicilios import service as domicilios
+from app.modules.domicilios.schemas import DomicilioEntrada
+from app.modules.encargos.models import Encargo, EncargoItem
 from app.modules.inventario import motor
 from app.modules.inventario.models import Insumo
 from app.modules.produccion.service import cantidades_por_insumo
@@ -38,6 +43,7 @@ from app.modules.ventas.schemas import (
     ItemSalida,
     MetodoResumen,
     ModificadorSalida,
+    PagoEntrada,
     PagoSalida,
     ProductoResumen,
     ResumenVentas,
@@ -48,6 +54,9 @@ from app.shared.dinero import aplicar_porcentaje, costo_linea
 from app.shared.errores import Conflicto, ErrorNegocio, NoEncontrado
 from app.shared.fechas import ahora, zona
 from app.shared.paginacion import ParamsPagina, RangoFechas, paginar
+
+# Las líneas de decoración de un encargo (sin producto) empiezan así; el resumen las agrupa.
+PREFIJO_DECORACION = "Decoración: "
 
 
 def siguiente_numero(db: Session, sede_id: uuid.UUID, tipo: str) -> int:
@@ -96,15 +105,18 @@ def monto_descuento(base: int, descuento: DescuentoEntrada | None) -> int:
 
 @dataclass
 class _Linea:
-    """Un ítem del carrito ya validado y con precios calculados."""
+    """Un ítem ya validado y con precios calculados. Sin producto es un detalle personalizado
+    de un encargo: no descuenta inventario."""
 
-    entrada: object
-    producto: Producto
+    cantidad: Decimal
+    precio_unitario: int
+    producto: Producto | None
     modificadores: list[Modificador]
     precios_mods: list[int]
     bruto: int
     descuento: int
-    item: VentaItem | None = None
+    nota: str | None = None
+    descripcion: str | None = None
     costo: int = 0
     costos_mods: list[int] = field(default_factory=list)
 
@@ -154,7 +166,9 @@ def _lineas(db: Session, ctx: Contexto, datos: VentaCrear) -> list[_Linea]:
         bruto = costo_linea(entrada.cantidad, Decimal(producto.precio)) + sum(precios_mods)
         lineas.append(
             _Linea(
-                entrada=entrada,
+                cantidad=entrada.cantidad,
+                precio_unitario=producto.precio,
+                nota=entrada.nota,
                 producto=producto,
                 modificadores=mods,
                 precios_mods=precios_mods,
@@ -165,18 +179,18 @@ def _lineas(db: Session, ctx: Contexto, datos: VentaCrear) -> list[_Linea]:
     return lineas
 
 
-def _validar_pagos(db: Session, ctx: Contexto, datos: VentaCrear, cobrado: int) -> dict:
+def _validar_pagos(db: Session, ctx: Contexto, pagos: list[PagoEntrada], cobrado: int) -> dict:
     metodos = {
         m.id: m
         for m in db.scalars(
             select(MetodoPago).where(
-                MetodoPago.id.in_([p.metodo_pago_id for p in datos.pagos]),
+                MetodoPago.id.in_([p.metodo_pago_id for p in pagos]),
                 MetodoPago.sede_id == ctx.sede_id,
                 MetodoPago.activo,
             )
         )
     }
-    for p in datos.pagos:
+    for p in pagos:
         metodo = metodos.get(p.metodo_pago_id)
         if metodo is None:
             raise NoEncontrado("el método de pago", p.metodo_pago_id)
@@ -191,11 +205,11 @@ def _validar_pagos(db: Session, ctx: Contexto, datos: VentaCrear, cobrado: int) 
                 {"monto": p.monto, "recibido": p.recibido},
                 status=422,
             )
-    suma = sum(p.monto for p in datos.pagos)
+    suma = sum(p.monto for p in pagos)
     if suma != cobrado:
         raise ErrorNegocio(
             "PAGOS_NO_CUADRAN",
-            "Los pagos no suman lo que se cobra (venta + propina + domicilio).",
+            "Los pagos no suman lo que se cobra.",
             {"cobrado": cobrado, "pagos": suma, "diferencia": cobrado - suma},
             status=422,
         )
@@ -216,8 +230,10 @@ class _Necesidad:
 def _necesidades(db: Session, lineas: list[_Linea]) -> list[_Necesidad]:
     necesidades = []
     for n, linea in enumerate(lineas):
-        cantidad = linea.entrada.cantidad
+        cantidad = linea.cantidad
         p = linea.producto
+        if p is None:
+            continue
         if p.tipo == "lote":
             # RN-08: unidades del lote terminado más antiguo.
             necesidades.append(_Necesidad("producto", p.id, n, -1, cantidad))
@@ -287,16 +303,15 @@ def _consumir(
             linea.costos_mods[nec.adicion] += costo
 
 
-def _movimientos_caja(db: Session, ctx: Contexto, venta: Venta, datos: VentaCrear) -> None:
-    """Reparte los pagos, en el orden en que llegan, entre venta, propina (RN-15) y domicilio
-    (RN-18): cada concepto queda en su propio movimiento de caja por método."""
-    pendientes = [
-        ["venta", venta.total],
-        ["propina", venta.propina],
-        ["domicilio", venta.valor_domicilio],
-    ]
+def _movimientos_caja(
+    db: Session, ctx: Contexto, venta: Venta, pagos: list[PagoEntrada], conceptos: dict[str, int]
+) -> None:
+    """Reparte los pagos, en el orden en que llegan, entre los conceptos (venta o saldo del
+    encargo, propina por RN-15 y domicilio por RN-18): cada uno queda en su propio movimiento
+    de caja por método."""
+    pendientes = [[tipo, monto] for tipo, monto in conceptos.items()]
     totales: dict[tuple[str, uuid.UUID], int] = {}
-    for pago in datos.pagos:
+    for pago in pagos:
         resto = pago.monto
         for concepto in pendientes:
             tomar = min(resto, concepto[1])
@@ -346,40 +361,27 @@ def _autorizar_descuentos(
     return descuentos.verificar_autorizador(db, ctx, a.email, a.clave)
 
 
-def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:
-    sesion = caja.requerir_caja(db, ctx, "vender")
-    lineas = _lineas(db, ctx, datos)
-
+def _guardar(
+    db: Session,
+    ctx: Contexto,
+    sesion,
+    lineas: list[_Linea],
+    pagos: list[PagoEntrada],
+    **cabecera,
+) -> Venta:
+    """Cabecera, consumo de inventario por PEPS, ítems con su costo real y pagos."""
     subtotal = sum(linea.bruto for linea in lineas)
-    descuento_items = sum(linea.descuento for linea in lineas)
-    descuento_venta = monto_descuento(subtotal - descuento_items, datos.descuento)
-    descuento_total = descuento_items + descuento_venta
-    total = subtotal - descuento_total
-    cobrado = total + datos.propina + datos.valor_domicilio
-    _validar_pagos(db, ctx, datos, cobrado)
-
-    autorizador = _autorizar_descuentos(
-        db, ctx, datos, lineas, subtotal - descuento_items, descuento_venta
-    )
-
-    motivos = [d.motivo for d in [datos.descuento, *(i.descuento for i in datos.items)] if d]
     venta = Venta(
         id=uuid.uuid4(),
         sede_id=ctx.sede_id,
         numero=siguiente_numero(db, ctx.sede_id, "venta"),
         caja_sesion_id=sesion.id,
-        tipo_servicio=datos.tipo_servicio,
-        cliente_id=datos.cliente_id,
         subtotal=subtotal,
-        descuento_total=descuento_total,
-        valor_domicilio=datos.valor_domicilio,
-        total=total,
-        propina=datos.propina,
+        total=subtotal - cabecera.get("descuento_total", 0),
         estado="pagada",
-        descuento_motivo="; ".join(dict.fromkeys(motivos)) or None,
-        descuento_autorizado_por=autorizador.id if autorizador else None,
         usuario_id=ctx.usuario_id,
         fecha=ahora(),
+        **cabecera,
     )
     db.add(venta)
     db.flush()
@@ -393,14 +395,15 @@ def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:
             id=uuid.uuid4(),
             sede_id=ctx.sede_id,
             venta_id=venta.id,
-            producto_id=linea.producto.id,
-            cantidad=linea.entrada.cantidad,
-            precio_unitario=linea.producto.precio,
+            producto_id=linea.producto.id if linea.producto else None,
+            descripcion=linea.descripcion,
+            cantidad=linea.cantidad,
+            precio_unitario=linea.precio_unitario,
             bruto=linea.bruto,
             descuento=linea.descuento,
             subtotal=linea.bruto - linea.descuento,
             costo_total=linea.costo,
-            nota=linea.entrada.nota,
+            nota=linea.nota,
             orden=orden,
         )
         item.modificadores = [
@@ -424,12 +427,55 @@ def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:
             recibido=p.recibido,
             orden=orden,
         )
-        for orden, p in enumerate(datos.pagos)
+        for orden, p in enumerate(pagos)
     ]
     venta.costo_total = sum(linea.costo + sum(linea.costos_mods) for linea in lineas)
     db.flush()
+    return venta
 
-    _movimientos_caja(db, ctx, venta, datos)
+
+def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:
+    sesion = caja.requerir_caja(db, ctx, "vender")
+    if datos.cliente_id:
+        clientes.obtener(db, ctx, datos.cliente_id)
+    lineas = _lineas(db, ctx, datos)
+
+    subtotal = sum(linea.bruto for linea in lineas)
+    descuento_items = sum(linea.descuento for linea in lineas)
+    descuento_venta = monto_descuento(subtotal - descuento_items, datos.descuento)
+    descuento_total = descuento_items + descuento_venta
+    total = subtotal - descuento_total
+    cobrado = total + datos.propina + datos.valor_domicilio
+    _validar_pagos(db, ctx, datos.pagos, cobrado)
+
+    autorizador = _autorizar_descuentos(
+        db, ctx, datos, lineas, subtotal - descuento_items, descuento_venta
+    )
+
+    motivos = [d.motivo for d in [datos.descuento, *(i.descuento for i in datos.items)] if d]
+    venta = _guardar(
+        db,
+        ctx,
+        sesion,
+        lineas,
+        datos.pagos,
+        tipo_servicio=datos.tipo_servicio,
+        cliente_id=datos.cliente_id,
+        descuento_total=descuento_total,
+        valor_domicilio=datos.valor_domicilio,
+        propina=datos.propina,
+        descuento_motivo="; ".join(dict.fromkeys(motivos)) or None,
+        descuento_autorizado_por=autorizador.id if autorizador else None,
+    )
+    _movimientos_caja(
+        db,
+        ctx,
+        venta,
+        datos.pagos,
+        {"venta": total, "propina": venta.propina, "domicilio": venta.valor_domicilio},
+    )
+    if datos.domicilio is not None:
+        domicilios.crear_para_venta(db, ctx, venta, datos.domicilio)
     if autorizador:
         descuentos.auditar_autorizacion(db, ctx, autorizador, venta.id, descuento_total)
     auditar(
@@ -448,6 +494,82 @@ def crear(db: Session, ctx: Contexto, datos: VentaCrear) -> Venta:
     return venta
 
 
+def crear_de_encargo(
+    db: Session,
+    ctx: Contexto,
+    encargo: Encargo,
+    *,
+    abonado: int,
+    pagos: list[PagoEntrada],
+    valor_domicilio: int,
+    domicilio: DomicilioEntrada | None,
+) -> Venta:
+    """RN-21: al entregar se crea la venta con los ítems y precios pactados, se descuenta el
+    inventario y solo se cobra el saldo: lo abonado antes queda aplicado a la venta. La venta
+    cuenta en ventas y utilidad hoy, el día de la entrega (RN-20)."""
+    sesion = caja.requerir_caja(db, ctx, "entregar el encargo")
+    items: list[EncargoItem] = encargo.items
+    productos = {
+        p.id: p
+        for p in db.scalars(
+            select(Producto).where(Producto.id.in_({i.producto_id for i in items if i.producto_id}))
+        )
+    }
+    lineas = []
+    for i in items:
+        lineas.append(
+            _Linea(
+                cantidad=i.cantidad,
+                precio_unitario=i.precio,
+                producto=productos.get(i.producto_id),
+                modificadores=[],
+                precios_mods=[],
+                bruto=costo_linea(i.cantidad, Decimal(i.precio)),
+                descuento=0,
+                descripcion=i.descripcion,
+            )
+        )
+        # La decoración va en su propia línea, sin producto: se cobra pero no mueve inventario.
+        if i.decoracion and i.decoracion_precio:
+            lineas.append(
+                _Linea(
+                    cantidad=Decimal(1),
+                    precio_unitario=i.decoracion_precio,
+                    producto=None,
+                    modificadores=[],
+                    precios_mods=[],
+                    bruto=i.decoracion_precio,
+                    descuento=0,
+                    descripcion=f"{PREFIJO_DECORACION}{i.decoracion}"[:200],
+                )
+            )
+    saldo = encargo.total - abonado
+    _validar_pagos(db, ctx, pagos, saldo + valor_domicilio)
+    venta = _guardar(
+        db,
+        ctx,
+        sesion,
+        lineas,
+        pagos,
+        tipo_servicio="domicilio" if encargo.tipo_entrega == "domicilio" else "llevar",
+        cliente_id=encargo.cliente_id,
+        valor_domicilio=valor_domicilio,
+        abonos_aplicados=abonado,
+    )
+    _movimientos_caja(db, ctx, venta, pagos, {"saldo_encargo": saldo, "domicilio": valor_domicilio})
+    if domicilio is not None:
+        domicilios.crear_para_venta(db, ctx, venta, domicilio, encargo_id=encargo.id)
+    auditar(
+        db,
+        ctx,
+        "crear",
+        "ventas",
+        venta.id,
+        despues={"numero": venta.numero, "total": venta.total, "encargo": encargo.numero},
+    )
+    return venta
+
+
 def anular(db: Session, ctx: Contexto, venta_id: uuid.UUID, motivo: str) -> Venta:
     """RF-15: la venta no se borra. El inventario vuelve a los mismos lotes con su costo original
     (RN-12) y el dinero sale de la caja abierta hoy, aunque la venta sea de una caja ya cerrada
@@ -458,6 +580,13 @@ def anular(db: Session, ctx: Contexto, venta_id: uuid.UUID, motivo: str) -> Vent
     caja.requerir_caja(db, ctx, "anular la venta (el dinero se devuelve desde la caja)")
     motor.reversar(db, ctx, "venta", venta.id)
     caja.reversar(db, ctx, "venta", venta.id, f"Anulación de la venta {venta.numero}: {motivo}")
+    domicilios.cancelar_de_venta(db, venta.id)
+    # Si venía de un encargo, vuelve a estar listo para entregar; sus abonos siguen vigentes.
+    encargo = db.scalar(select(Encargo).where(Encargo.venta_id == venta.id).with_for_update())
+    if encargo is not None:
+        encargo.estado = "listo"
+        encargo.venta_id = None
+        encargo.entregado_en = None
     venta.estado = "anulada"
     venta.motivo_anulacion = motivo
     venta.anulada_por = ctx.usuario_id
@@ -509,6 +638,7 @@ def salida(db: Session, v: Venta) -> VentaSalida:
             )
         ).all()
     )
+    encargo = db.execute(select(Encargo.id, Encargo.numero).where(Encargo.venta_id == v.id)).first()
     pagos = [
         PagoSalida(
             metodo_pago_id=p.metodo_pago_id,
@@ -526,11 +656,16 @@ def salida(db: Session, v: Venta) -> VentaSalida:
         caja_sesion_id=v.caja_sesion_id,
         tipo_servicio=v.tipo_servicio,
         cliente_id=v.cliente_id,
+        cliente=db.scalar(select(Cliente.nombre).where(Cliente.id == v.cliente_id))
+        if v.cliente_id
+        else None,
+        encargo_id=encargo.id if encargo else None,
+        encargo_numero=encargo.numero if encargo else None,
         items=[
             ItemSalida(
                 id=i.id,
                 producto_id=i.producto_id,
-                producto=productos.get(i.producto_id, ""),
+                producto=productos.get(i.producto_id) or i.descripcion or "",
                 cantidad=i.cantidad,
                 precio_unitario=i.precio_unitario,
                 modificadores=[
@@ -558,7 +693,8 @@ def salida(db: Session, v: Venta) -> VentaSalida:
         total=v.total,
         propina=v.propina,
         valor_domicilio=v.valor_domicilio,
-        cobrado=v.total + v.propina + v.valor_domicilio,
+        abonos_aplicados=v.abonos_aplicados,
+        cobrado=v.total + v.propina + v.valor_domicilio - v.abonos_aplicados,
         cambio=sum(p.cambio for p in pagos),
         costo_total=v.costo_total,
         pagos=pagos,
@@ -603,7 +739,7 @@ def resumen(db: Session, ctx: Contexto, desde: date, hasta: date) -> ResumenVent
     del_rango = (Venta.sede_id == ctx.sede_id, Venta.fecha >= inicio, Venta.fecha < fin)
     pagada = (*del_rango, Venta.estado == "pagada")
 
-    ventas, total, descuentos, propinas, domicilios = db.execute(
+    ventas, total, descuentos_, propinas, valor_domicilios = db.execute(
         select(
             func.count(),
             func.coalesce(func.sum(Venta.total), 0),
@@ -621,25 +757,46 @@ def resumen(db: Session, ctx: Contexto, desde: date, hasta: date) -> ResumenVent
         .group_by(MetodoPago.id, MetodoPago.nombre, MetodoPago.orden)
         .order_by(MetodoPago.orden, MetodoPago.nombre)
     ).all()
+    # Los ítems personalizados de un encargo no tienen producto: se agrupan por su descripción.
+    # Las decoraciones, cada una con su referencia, van juntas como "Decoración".
+    nombre = func.coalesce(
+        Producto.nombre,
+        case(
+            (VentaItem.descripcion.startswith(PREFIJO_DECORACION), "Decoración"),
+            else_=VentaItem.descripcion,
+        ),
+    )
     productos = db.execute(
         select(
-            Producto.id, Producto.nombre, func.sum(VentaItem.cantidad), func.sum(VentaItem.subtotal)
+            VentaItem.producto_id,
+            nombre,
+            func.sum(VentaItem.cantidad),
+            func.sum(VentaItem.subtotal),
         )
         .join(Venta, Venta.id == VentaItem.venta_id)
-        .join(Producto, Producto.id == VentaItem.producto_id)
+        .outerjoin(Producto, Producto.id == VentaItem.producto_id)
         .where(*pagada)
-        .group_by(Producto.id, Producto.nombre)
-        .order_by(func.sum(VentaItem.subtotal).desc(), Producto.nombre)
+        .group_by(VentaItem.producto_id, nombre)
+        .order_by(func.sum(VentaItem.subtotal).desc(), nombre)
     ).all()
+    retenido = db.scalar(
+        select(func.coalesce(func.sum(Encargo.monto_retenido), 0)).where(
+            Encargo.sede_id == ctx.sede_id,
+            Encargo.estado == "cancelado",
+            Encargo.cancelado_en >= inicio,
+            Encargo.cancelado_en < fin,
+        )
+    )
     return ResumenVentas(
         desde=desde,
         hasta=hasta,
         ventas=ventas,
         anuladas=anuladas or 0,
         total=int(total),
-        descuentos=int(descuentos),
+        descuentos=int(descuentos_),
         propinas=int(propinas),
-        domicilios=int(domicilios),
+        domicilios=int(valor_domicilios),
+        ingresos_cancelacion=int(retenido or 0),
         por_metodo=[
             MetodoResumen(metodo_pago_id=i, metodo=n, monto=int(m)) for i, n, m in por_metodo
         ],

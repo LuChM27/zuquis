@@ -16,8 +16,12 @@ export interface OpcionBuscador {
   texto: string
   /** Texto pequeño a la derecha: unidad, precio, "sin receta"… */
   detalle?: string
+  /** Texto que también se busca aunque no se muestre (el teléfono sin espacios, un código). */
+  busqueda?: string
   deshabilitada?: boolean
 }
+
+const coincideOpcion = (o: OpcionBuscador, q: string) => coincide(o.busqueda ? `${o.texto} ${o.busqueda}` : o.texto, q)
 
 export function Buscador({
   etiqueta,
@@ -51,7 +55,7 @@ export function Buscador({
 
   // Mientras no se escribe, el campo muestra la opción elegida.
   const texto = consulta ?? elegida?.texto ?? ''
-  const filtradas = consulta ? opciones.filter((o) => coincide(o.texto, consulta)) : opciones
+  const filtradas = consulta ? opciones.filter((o) => coincideOpcion(o, consulta)) : opciones
 
   function cerrar() {
     setAbierto(false)
@@ -134,7 +138,7 @@ export function Buscador({
             const q = e.target.value
             setConsulta(q)
             setAbierto(true)
-            setActiva(primeraHabilitada(q ? opciones.filter((o) => coincide(o.texto, q)) : opciones))
+            setActiva(primeraHabilitada(q ? opciones.filter((o) => coincideOpcion(o, q)) : opciones))
           }}
           onKeyDown={alTeclear}
           className={unir(

@@ -13,6 +13,8 @@ export function textoComprobante(v: Venta): string {
     `Total: ${pesos(v.total)}`,
     v.propina ? `Propina: ${pesos(v.propina)}` : null,
     v.valor_domicilio ? `Domicilio: ${pesos(v.valor_domicilio)}` : null,
+    v.abonos_aplicados ? `Abonos ya recibidos: −${pesos(v.abonos_aplicados)}` : null,
+    v.abonos_aplicados ? `Pagado hoy: ${pesos(v.cobrado)}` : null,
     '¡Gracias por tu compra!',
   ]
     .filter(Boolean)

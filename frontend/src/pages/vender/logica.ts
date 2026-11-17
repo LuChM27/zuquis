@@ -36,6 +36,10 @@ export function motivoNoCobrar(carrito: Carrito, cobro: Cobro, metodos: MetodoPa
   const t = calcular(carrito)
   if (carrito.lineas.length === 0) return 'Agrega productos a la venta.'
   if (t.descuentoExcedido) return 'Un descuento es mayor que el valor al que se aplica.'
+  if (carrito.tipoServicio === 'domicilio') {
+    if (!carrito.entrega.domiciliarioId) return 'Elige quién lleva el domicilio.'
+    if (!carrito.entrega.direccion.trim()) return 'Escribe la dirección de entrega.'
+  }
   if (t.cobrar === 0) return null
   if (cobro.elegidos.length === 0) return 'Elige cómo paga.'
   const pagos = pagosPara(t.cobrar, cobro.elegidos)
