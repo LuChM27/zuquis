@@ -341,6 +341,8 @@ function DetalleGasto({ gasto }: { gasto: Gasto }) {
       avisar(gasto.fuente === 'caja' ? 'Gasto anulado: el dinero volvió a la caja abierta.' : 'Gasto anulado.')
       void clienteQuery.invalidateQueries({ queryKey: ['gastos'] })
       void clienteQuery.invalidateQueries({ queryKey: ['caja'] })
+      // Un gasto de decoración cuenta en el resumen de su encargo.
+      if (gasto.encargo_id) void clienteQuery.invalidateQueries({ queryKey: ['encargos'] })
     },
     onError: (e) => avisar(e.message, 'error'),
   })

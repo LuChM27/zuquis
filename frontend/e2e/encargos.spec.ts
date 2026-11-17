@@ -157,4 +157,18 @@ test('decoración: torta con decoración, gasto de materiales ligado y línea pr
   const venta = page.locator('section').filter({ has: page.getByRole('heading', { level: 2, name: /^Venta n\.º/ }) })
   await expect(venta).toContainText('Decoración: Letras doradas y topper')
   await expect(venta).toContainText('$25.000')
+
+  // Anular el gasto desde Gastos y volver a Encargos sin recargar: ya no cuenta.
+  await page.getByRole('navigation').getByRole('link', { name: 'Gastos' }).click()
+  await page.getByRole('row').filter({ hasText: 'Fondant y topper' }).first().click()
+  await page.getByRole('button', { name: 'Anular gasto' }).click()
+  await page.getByLabel('Motivo de la anulación').fill('Se registró dos veces')
+  await page.getByRole('button', { name: 'Anular gasto' }).click()
+  await expect(page.getByText('Gasto anulado: el dinero volvió a la caja abierta.')).toBeVisible()
+  await page.getByRole('navigation').getByRole('link', { name: 'Encargos' }).click()
+  await page.getByText(`Torta decorada E2E ${marca}`).first().click()
+  const decoracion = page.getByRole('region', { name: 'Decoración' })
+  await expect(decoracion).toContainText('−$0')
+  await expect(decoracion).toContainText('$25.000')
+  await expect(decoracion).not.toContainText('$16.000')
 })
