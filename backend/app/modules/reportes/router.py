@@ -24,7 +24,7 @@ _CAJA = frozenset({"reportes.ver", "reportes.ver_caja_propia"})
 # Qué permisos abren cada reporte. El cajero (ver_caja_propia) solo ve su caja abierta.
 ACCESO: dict[str, frozenset[str]] = {
     "ventas": _CAJA,
-    "cierres": _CAJA,
+    "cierres": _TODO,
     "gastos": _TODO,
     "flujo-caja": _TODO,
     "propinas": _TODO,

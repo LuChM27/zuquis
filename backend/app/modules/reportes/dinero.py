@@ -108,7 +108,7 @@ def flujo(db: Session, p: Periodo) -> list[FilaFlujo]:
             literal(0),
             func.sum(Gasto.monto),
         )
-        .where(*_gastos_vigentes(p), Gasto.caja_sesion_id.is_(None))
+        .where(*_gastos_vigentes(p), Gasto.fuente != "caja")
         .group_by(dia_gasto, Gasto.metodo_pago_id)
     )
     dia_pago = func.to_char(local(PagoCompra.fecha), "YYYY-MM-DD")

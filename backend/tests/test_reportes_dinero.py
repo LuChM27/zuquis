@@ -187,7 +187,8 @@ def test_propinas_y_domicilios(cliente, admin, carta, metodos, reloj, domiciliar
     ] == [("Carlos", 1, 5000)]
 
 
-def test_cajero_ve_solo_cierres_si_tiene_permiso(cliente, crear_usuario, login):
+def test_cajero_no_ve_reportes_de_dinero(cliente, crear_usuario, login):
+    """Su arqueo lo ve en la pantalla de Caja; los cierres de la sede son del admin/contador."""
     cajero = login(crear_usuario("cajero", email="caja@zuquis.co"))
-    assert reporte(cliente, cajero, "cierres", HOY, HOY).status_code == 200
+    assert reporte(cliente, cajero, "cierres", HOY, HOY).status_code == 403
     assert reporte(cliente, cajero, "gastos", HOY, HOY).status_code == 403
