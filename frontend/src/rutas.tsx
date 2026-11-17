@@ -13,6 +13,7 @@ import { NoEncontrada, SeccionPendiente } from './pages/EnConstruccion'
 import { Ingresar } from './pages/Ingresar'
 import { Inventario } from './pages/inventario/Inventario'
 import { Inicio } from './pages/Inicio'
+import { Reportes } from './pages/reportes/Reportes'
 import { Vender } from './pages/vender/Vender'
 import { Ventas } from './pages/ventas/Ventas'
 
@@ -27,6 +28,7 @@ const PANTALLAS: Record<string, ReactNode> = {
   '/caja': <Caja />,
   '/gastos': <Gastos />,
   '/encargos': <Encargos />,
+  '/reportes': <Reportes />,
 }
 
 export const rutas: RouteObject[] = [

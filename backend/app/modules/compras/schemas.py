@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.shared.dinero import Cantidad, CostoUnitario, Pesos
 from app.shared.esquemas import EdicionParcial
+from app.shared.fechas import hoy
 
 
 class ProveedorCrear(BaseModel):
@@ -64,12 +65,21 @@ class CompraCrear(BaseModel):
     desde_caja: bool = Field(
         default=False, description="De contado: el pago sale de la caja abierta (pago_compra)"
     )
+    fecha_limite_pago: date | None = Field(
+        default=None, description="Opcional: hasta cuándo hay plazo para pagarla"
+    )
     items: list[CompraItemEntrada] = Field(min_length=1)
 
     @model_validator(mode="after")
     def _metodo_si_contado(self):
         if self.estado_pago == "contado" and self.metodo_pago_id is None:
             raise ValueError("Una compra de contado necesita el método de pago.")
+        if self.estado_pago == "contado" and self.fecha_limite_pago is not None:
+            raise ValueError("La fecha límite de pago solo aplica a compras por pagar.")
+        if self.fecha_limite_pago and self.fecha_limite_pago < (self.fecha or hoy()):
+            raise ValueError(
+                "La fecha límite de pago no puede ser anterior a la fecha de la compra."
+            )
         return self
 
 
@@ -111,6 +121,7 @@ class CompraSalida(BaseModel):
     pagado: int
     saldo: int
     estado_pago: str
+    fecha_limite_pago: date | None
     soporte_url: str | None
     anulada: bool
     motivo_anulacion: str | None

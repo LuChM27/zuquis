@@ -47,6 +47,8 @@ CLAVES: dict[str, tuple[TypeAdapter, Any]] = {
         TypeAdapter(Literal["carta", "media_carta", "80mm", "58mm"]),
         "media_carta",
     ),
+    # La sede tiene datos de demostración (semilla de la fase 4): el dashboard lo avisa.
+    "datos_ejemplo": (TypeAdapter(bool), False),
 }
 
 

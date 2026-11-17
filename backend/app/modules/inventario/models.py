@@ -187,3 +187,8 @@ class VerificacionInventario(Base, Operativo):
     fecha: Mapped[datetime] = mapped_column(server_default=func.now(), index=True)
     lotes_revisados: Mapped[int]
     diferencias: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+
+
+# Reportes por sede y fecha (fase 4, migración 0010).
+Index("ix_mermas_sede_fecha", Merma.sede_id, Merma.fecha)
+Index("ix_movimientos_sede_fecha", MovimientoInventario.sede_id, MovimientoInventario.fecha)

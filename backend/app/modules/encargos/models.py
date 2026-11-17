@@ -120,3 +120,9 @@ class EncargoAbono(Base, Operativo):
     anulado_en: Mapped[datetime | None]
 
     encargo: Mapped[Encargo] = relationship(back_populates="abonos")
+
+
+# Reportes por sede y fecha (fase 4, migración 0010).
+Index("ix_encargo_abonos_sede_fecha", EncargoAbono.sede_id, EncargoAbono.fecha)
+Index("ix_encargos_sede_cancelado", Encargo.sede_id, Encargo.cancelado_en)
+Index("ix_encargos_sede_entregado", Encargo.sede_id, Encargo.entregado_en)

@@ -5,9 +5,19 @@ from zoneinfo import ZoneInfo
 
 from app.core.config import obtener_config
 
+_fijo: datetime | None = None
+
+
+def fijar_ahora(momento: datetime | None) -> None:
+    """Fija la hora que devuelve ``ahora()`` (pruebas de varios días y semillas de ejemplo).
+    ``None`` vuelve al reloj real. Funciona aunque el módulo haya importado ``ahora`` por
+    nombre, porque la función lee esta variable en cada llamada."""
+    global _fijo
+    _fijo = momento.astimezone(UTC) if momento else None
+
 
 def ahora() -> datetime:
-    return datetime.now(UTC)
+    return _fijo or datetime.now(UTC)
 
 
 def zona() -> ZoneInfo:

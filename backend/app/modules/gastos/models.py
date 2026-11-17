@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Index, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.modelo import Base, Operativo
@@ -77,3 +77,7 @@ class Gasto(Base, Operativo):
     motivo_anulacion: Mapped[str | None] = mapped_column(String(200))
     anulado_por: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("usuarios.id"))
     anulado_en: Mapped[datetime | None]
+
+
+# Reportes por sede y fecha (fase 4, migración 0010).
+Index("ix_gastos_sede_fecha", Gasto.sede_id, Gasto.fecha)

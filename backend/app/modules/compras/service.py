@@ -145,6 +145,7 @@ def crear_compra(db: Session, ctx: Contexto, datos: CompraCrear) -> Compra:
         numero_factura_proveedor=datos.numero_factura_proveedor,
         soporte_url=datos.soporte_url,
         estado_pago=datos.estado_pago,
+        fecha_limite_pago=datos.fecha_limite_pago,
         total=sumar_pesos([i.costo_total for i in datos.items]),
     )
     db.add(compra)
@@ -341,6 +342,7 @@ def compra_salida(db: Session, compra: Compra) -> CompraSalida:
         pagado=pagado,
         saldo=compra.total - pagado,
         estado_pago=compra.estado_pago,
+        fecha_limite_pago=compra.fecha_limite_pago,
         soporte_url=compra.soporte_url,
         anulada=compra.anulada,
         motivo_anulacion=compra.motivo_anulacion,
