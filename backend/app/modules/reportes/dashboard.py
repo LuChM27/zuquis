@@ -18,7 +18,6 @@ from app.modules.caja.service import caja_abierta
 from app.modules.clientes.models import Cliente
 from app.modules.configuracion.service import valor
 from app.modules.encargos.models import Encargo, EncargoAbono
-from app.modules.gastos.models import Gasto
 from app.modules.inventario.consultas import alertas
 from app.modules.inventario.schemas import Alerta
 from app.modules.reportes import cifras
@@ -96,14 +95,6 @@ def dashboard(db: Session, ctx: Contexto) -> Dashboard:
     desde = min(a_local(sesion.abierta_en).date(), hoy_) if sesion else hoy_
     p = Periodo(sede_id=ctx.sede_id, desde=desde, hasta=hoy_)
     t = cifras.totales(db, p)
-    n_gastos = db.scalar(
-        select(func.count()).where(
-            Gasto.sede_id == p.sede_id,
-            Gasto.fecha >= p.desde,
-            Gasto.fecha <= p.hasta,
-            Gasto.estado == "registrado",
-        )
-    )
     cobradas = t.n_ventas - t.n_cortesias
     ticket = (
         int((Decimal(t.ventas) / cobradas).quantize(Decimal(1), ROUND_HALF_UP)) if cobradas else 0
@@ -118,8 +109,8 @@ def dashboard(db: Session, ctx: Contexto) -> Dashboard:
         ventas=t.ventas,
         n_ventas=t.n_ventas,
         gastos=t.gastos,
-        n_gastos=int(n_gastos or 0),
-        ganancia=t.ventas - t.costo_insumos - t.costo_cortesias - t.gastos,
+        n_gastos=t.n_gastos,
+        ganancia=t.ganancia_estimada,
         ticket_promedio=ticket,
         por_hora=cifras.ventas_por(db, p, "hora"),
         por_metodo=por_metodo,

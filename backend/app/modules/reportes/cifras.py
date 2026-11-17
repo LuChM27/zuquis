@@ -53,6 +53,17 @@ class Totales(BaseModel):
     mermas: int
     ingresos_cancelacion: int
     anuladas: int
+    n_gastos: int = 0
+
+    @property
+    def ganancia_estimada(self) -> int:
+        """Tarjeta del dashboard: ventas − costo real de insumos (y de cortesías) − gastos."""
+        return self.ventas - self.costo_insumos - self.costo_cortesias - self.gastos
+
+    @property
+    def utilidad(self) -> int:
+        """Cascada: además resta las mermas y suma lo retenido en cancelaciones."""
+        return self.ganancia_estimada - self.mermas + self.ingresos_cancelacion
 
 
 class FilaVentas(BaseModel):
@@ -113,7 +124,9 @@ def totales(db: Session, p: Periodo) -> Totales:
     ]
     if p.caja_sesion_id:
         gastos_filtro.append(Gasto.caja_sesion_id == p.caja_sesion_id)
-    gastos = db.scalar(select(_suma(Gasto.monto)).where(*gastos_filtro))
+    gastos, n_gastos = db.execute(
+        select(_suma(Gasto.monto), func.count()).where(*gastos_filtro)
+    ).one()
     if p.caja_sesion_id:
         # Mermas y cancelaciones son de la sede, no de una caja: el cajero no las ve.
         mermas = retenido = 0
@@ -132,6 +145,7 @@ def totales(db: Session, p: Periodo) -> Totales:
         mermas=int(mermas),
         ingresos_cancelacion=int(retenido),
         anuladas=int(anuladas or 0),
+        n_gastos=int(n_gastos),
     )
 
 

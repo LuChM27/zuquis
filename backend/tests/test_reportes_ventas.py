@@ -52,6 +52,7 @@ def test_totales_de_un_dia(cliente, admin, carta, metodos, reloj, db):
         "mermas": 0,
         "ingresos_cancelacion": 0,
         "anuladas": 0,
+        "n_gastos": 0,
     }
 
 

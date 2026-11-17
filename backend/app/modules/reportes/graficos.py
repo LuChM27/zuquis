@@ -141,8 +141,24 @@ def por_cajero(db: Session, p: Periodo) -> list[dict]:
     """Por cajero: vendido, descuentos (sin cortesías), cortesías y la diferencia de los
     cierres que contó (quien cerró la caja)."""
     cortesia = es_cortesia()
-    ventas = db.execute(
+    inicio, fin = p.limites()
+    filas: dict[uuid.UUID, dict] = {}
+
+    def fila(usuario_id: uuid.UUID, nombre: str) -> dict:
+        return filas.setdefault(
+            usuario_id,
+            {
+                "cajero": nombre,
+                "vendido": 0,
+                "descuentos": 0,
+                "cortesias": 0,
+                "diferencia_cierres": 0,
+            },
+        )
+
+    for uid, nombre, v, d, c in db.execute(
         select(
+            Usuario.id,
             Usuario.nombre,
             _suma(Venta.total),
             func.coalesce(func.sum(Venta.descuento_total).filter(~cortesia), 0),
@@ -151,39 +167,20 @@ def por_cajero(db: Session, p: Periodo) -> list[dict]:
         .join(Usuario, Usuario.id == Venta.usuario_id)
         .where(*_del_periodo(p))
         .group_by(Usuario.id, Usuario.nombre)
-    ).all()
-    inicio, fin = p.limites()
-    diferencias = dict(
-        db.execute(
-            select(Usuario.nombre, func.sum(CajaArqueo.diferencia))
-            .join(CajaSesion, CajaSesion.id == CajaArqueo.caja_sesion_id)
-            .join(Usuario, Usuario.id == CajaSesion.cerrada_por)
-            .where(
-                CajaSesion.sede_id == p.sede_id,
-                CajaSesion.cerrada_en >= inicio,
-                CajaSesion.cerrada_en < fin,
-            )
-            .group_by(Usuario.id, Usuario.nombre)
-        ).all()
-    )
-    filas = {
-        nombre: {
-            "cajero": nombre,
-            "vendido": int(v),
-            "descuentos": int(d or 0),
-            "cortesias": int(c),
-            "diferencia_cierres": int(diferencias.pop(nombre, 0) or 0),
-        }
-        for nombre, v, d, c in ventas
-    }
-    for nombre, dif in diferencias.items():  # cerró caja pero no vendió en el rango
-        filas[nombre] = {
-            "cajero": nombre,
-            "vendido": 0,
-            "descuentos": 0,
-            "cortesias": 0,
-            "diferencia_cierres": int(dif or 0),
-        }
+    ).all():
+        fila(uid, nombre).update(vendido=int(v), descuentos=int(d), cortesias=int(c))
+    for uid, nombre, dif in db.execute(
+        select(Usuario.id, Usuario.nombre, func.sum(CajaArqueo.diferencia))
+        .join(CajaSesion, CajaSesion.id == CajaArqueo.caja_sesion_id)
+        .join(Usuario, Usuario.id == CajaSesion.cerrada_por)
+        .where(
+            CajaSesion.sede_id == p.sede_id,
+            CajaSesion.cerrada_en >= inicio,
+            CajaSesion.cerrada_en < fin,
+        )
+        .group_by(Usuario.id, Usuario.nombre)
+    ).all():
+        fila(uid, nombre)["diferencia_cierres"] = int(dif or 0)
     return sorted(filas.values(), key=lambda f: -f["vendido"])
 
 
@@ -202,7 +199,6 @@ def _menos_vendidos(db: Session, p: Periodo, vendidos: dict[str, Any], n: int = 
 def _ganancia(db: Session, p: Periodo) -> dict:
     t = cifras.totales(db, p)
     regalado = t.costo_cortesias
-    utilidad = t.ventas - t.costo_insumos - regalado - t.gastos - t.mermas + t.ingresos_cancelacion
     flujo: dict[str, dict[str, int]] = defaultdict(
         lambda: {"entra_negocio": 0, "entra_dueno": 0, "sale": 0}
     )
@@ -218,7 +214,7 @@ def _ganancia(db: Session, p: Periodo) -> dict:
             "gastos": t.gastos,
             "mermas": t.mermas,
             "ingresos_cancelacion": t.ingresos_cancelacion,
-            "utilidad": utilidad,
+            "utilidad": t.utilidad,
         },
         "costo_pct": [
             {
