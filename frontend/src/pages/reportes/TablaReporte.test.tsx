@@ -35,3 +35,8 @@ test('sección sin filas dice que no hay datos', () => {
   render(<TablaReporte seccion={{ ...SECCION, filas: [], totales: null }} />)
   expect(screen.getByText('Sin datos en este rango')).toBeInTheDocument()
 })
+
+test('en celular las tarjetas también muestran el total', () => {
+  render(<TablaReporte seccion={SECCION} />)
+  expect(screen.getAllByText('Total')).toHaveLength(2)
+})

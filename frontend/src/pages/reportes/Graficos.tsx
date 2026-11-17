@@ -4,6 +4,7 @@ import { BASE, COLORES, enMiles, etiquetaHora } from '../../components/graficos/
 import { Tarjeta } from '../../components/ui'
 import { unir } from '../../lib/clases'
 import { pesos } from '../../lib/formato'
+import { pasosCascada } from './cascada'
 import { useGrupoGraficos, type DatosGrupo, type Grupo, type Rango } from '../../lib/reportes'
 import { fechaIso } from '../../lib/unidades'
 
@@ -87,25 +88,38 @@ function Ganancia({ d }: { d: DatosGrupo['ganancia'] }) {
     ['Mermas', -c.mermas],
     ['Cancelaciones', c.ingresos_cancelacion],
   ]
-  let acumulado = 0
-  const base: number[] = []
-  const valor: { value: number; itemStyle: { color: string } }[] = []
-  for (const [, v] of pasos) {
-    const desde = v >= 0 ? acumulado : acumulado + v
-    base.push(Math.max(Math.min(desde, acumulado + v), 0))
-    valor.push({ value: Math.abs(v), itemStyle: { color: v >= 0 ? COLORES.rosaBarra : COLORES.peligro } })
-    acumulado += v
-  }
-  base.push(0)
-  valor.push({ value: c.utilidad, itemStyle: { color: c.utilidad >= 0 ? COLORES.fucsia : COLORES.peligro } })
+  // Valor con signo de cada barra (el último es la utilidad) para etiquetas y detalle.
+  const conSigno = [...pasos.map(([, v]) => v), c.utilidad]
+  const nombres = [...pasos.map(([n]) => n), 'Utilidad']
+  const geo = pasosCascada(
+    pasos.map(([, v]) => v),
+    c.utilidad,
+  )
+  const color = (i: number) => (i === conSigno.length - 1 ? (c.utilidad >= 0 ? COLORES.fucsia : COLORES.peligro) : conSigno[i] >= 0 ? COLORES.rosaBarra : COLORES.peligro)
+  const transparente = { type: 'bar', stack: 'c', itemStyle: { color: 'transparent' }, emphasis: { disabled: true }, tooltip: { show: false } }
+  const visible = (datos: number[], posicion: 'top' | 'bottom') => ({
+    type: 'bar',
+    stack: 'c',
+    barMaxWidth: 44,
+    data: datos.map((v, i) => ({ value: v, itemStyle: { color: color(i) } })),
+    label: {
+      show: true,
+      position: posicion,
+      // Una sola etiqueta por barra, con su signo: en la parte de arriba si la tiene.
+      formatter: ({ dataIndex }: { dataIndex: number }) =>
+        (posicion === 'top' ? geo.valorArriba[dataIndex] > 0 : geo.valorArriba[dataIndex] === 0) ? enMiles(conSigno[dataIndex]) : '',
+    },
+  })
   const cascada = {
     ...BASE,
-    tooltip: { ...tooltipPesos, formatter: (p: { name: string; value: number }[]) => `${p[1].name}: ${pesos(p[1].value)}` },
-    xAxis: { type: 'category', data: [...pasos.map(([n]) => n), 'Utilidad'], axisTick: { show: false } },
+    tooltip: { ...BASE.tooltip, formatter: (p: { dataIndex: number }[]) => `${nombres[p[0].dataIndex]}: ${pesos(conSigno[p[0].dataIndex])}` },
+    xAxis: { type: 'category', data: nombres, axisTick: { show: false } },
     yAxis: ejePesos,
     series: [
-      { type: 'bar', stack: 'c', data: base, itemStyle: { color: 'transparent' }, emphasis: { disabled: true } },
-      { type: 'bar', stack: 'c', data: valor, barMaxWidth: 44, label: { show: true, position: 'top', formatter: ({ value }: { value: number }) => enMiles(value) } },
+      { ...transparente, data: geo.baseArriba },
+      visible(geo.valorArriba, 'top'),
+      { ...transparente, data: geo.baseAbajo },
+      visible(geo.valorAbajo, 'bottom'),
     ],
   }
   const pct = {

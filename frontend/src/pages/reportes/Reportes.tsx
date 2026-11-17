@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { useSesion, useYo } from '../../auth/contexto'
 import { Pildoras, Selector } from '../../components/formulario'
@@ -9,6 +9,9 @@ import { Graficos } from './Graficos'
 import { Tablas } from './Tablas'
 
 type Vista = 'graficos' | 'tablas'
+
+const FECHA = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
+const GraficosMemo = memo(Graficos)
 
 const mesLargo = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', timeZone: 'UTC' })
 const diaSolo = new Intl.DateTimeFormat('es-CO', { day: 'numeric', timeZone: 'UTC' })
@@ -31,12 +34,15 @@ export function Reportes() {
 
   const verGraficos = puede('reportes.ver') || puede('reportes.ver_inventario')
   const tipos = TIPOS_VISIBLES(yo.permisos)
-  const semana = atajo('semana')
-  const rango: Rango = {
-    desde: params.get('desde') ?? semana.desde,
-    hasta: params.get('hasta') ?? semana.hasta,
-    sedeId: params.get('sede') ?? undefined,
-  }
+  const desdeUrl = params.get('desde')
+  const hastaUrl = params.get('hasta')
+  const sedeUrl = params.get('sede') ?? undefined
+  // Memorizado: los gráficos solo se recalculan si cambia el rango, no en cada render.
+  const rango: Rango = useMemo(() => {
+    const valido = (f: string | null): f is string => !!f && FECHA.test(f) && !Number.isNaN(Date.parse(f))
+    if (valido(desdeUrl) && valido(hastaUrl) && desdeUrl <= hastaUrl) return { desde: desdeUrl, hasta: hastaUrl, sedeId: sedeUrl }
+    return { ...atajo('semana'), sedeId: sedeUrl }
+  }, [desdeUrl, hastaUrl, sedeUrl])
   const vista: Vista = verGraficos && params.get('vista') !== 'tablas' ? 'graficos' : 'tablas'
   const pedido = params.get('reporte') as TipoReporte | null
   const tipo = pedido && tipos.includes(pedido) ? pedido : tipos[0]
@@ -80,7 +86,7 @@ export function Reportes() {
         </div>
       </div>
       {vista === 'graficos' ? (
-        <Graficos rango={rango} completo={puede('reportes.ver')} />
+        <GraficosMemo rango={rango} completo={puede('reportes.ver')} />
       ) : tipo ? (
         <Tablas rango={rango} tipos={tipos} tipo={tipo} alCambiarTipo={(t) => cambiar({ reporte: t })} puedeExportar={puede('reportes.exportar')} />
       ) : null}

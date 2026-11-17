@@ -77,11 +77,24 @@ test('el atajo "Mes" cambia el rango de las consultas', async () => {
   const router = montar(['reportes.ver'])
   await userEvent.click(screen.getByRole('tab', { name: 'Mes' }))
   await waitFor(() => expect(router.state.location.search).toMatch(/desde=\d{4}-\d{2}-01/))
-  await waitFor(() => expect(urls.some((u) => /desde=\d{4}-\d{2}-01/.test(u))).toBe(true))
+  await waitFor(() => expect(urls.join(' ')).toMatch(/desde=\d{4}-\d{2}-01/))
 })
 
 test('sin permiso de exportar no hay botones de Excel ni PDF', async () => {
   montar(['reportes.ver'], '/reportes?vista=tablas')
   await screen.findByRole('combobox', { name: 'Reporte' })
   expect(screen.queryByRole('button', { name: 'Exportar a Excel' })).not.toBeInTheDocument()
+})
+
+test('una fecha inválida en la URL no rompe la pantalla: usa la semana', async () => {
+  montar(['reportes.ver'], '/reportes?desde=abc&hasta=2026-11-30')
+  expect(screen.getByRole('heading', { name: 'Reportes' })).toBeInTheDocument()
+  await waitFor(() => expect(urls.length).toBeGreaterThan(0))
+  expect(urls.every((u) => !u.includes('desde=abc'))).toBe(true)
+})
+
+test('un rango al revés en la URL se reemplaza por la semana', async () => {
+  montar(['reportes.ver'], '/reportes?desde=2026-11-30&hasta=2026-11-01')
+  await waitFor(() => expect(urls.length).toBeGreaterThan(0))
+  expect(urls.every((u) => !u.includes('desde=2026-11-30'))).toBe(true)
 })

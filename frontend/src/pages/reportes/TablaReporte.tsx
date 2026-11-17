@@ -109,6 +109,24 @@ export function TablaReporte({ seccion }: { seccion: Seccion }) {
                 </dl>
               </li>
             ))}
+            {totales && (
+              <li className="rounded-2xl bg-pista px-4 py-3 font-semibold">
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+                  <dt>Total</dt>
+                  <dd />
+                  {columnas
+                    .filter((c) => c.clave in totales)
+                    .map((c) => (
+                      <div key={c.clave} className="contents">
+                        <dt className="text-sm font-normal text-cafe-suave">{c.titulo}</dt>
+                        <dd className="text-right">
+                          <Valor valor={totales[c.clave]} tipo={c.tipo} />
+                        </dd>
+                      </div>
+                    ))}
+                </dl>
+              </li>
+            )}
           </ul>
         </>
       )}
