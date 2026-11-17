@@ -343,6 +343,7 @@ export interface Compra {
   pagado: number
   saldo: number
   estado_pago: EstadoPago
+  fecha_limite_pago: string | null
   soporte_url: string | null
   anulada: boolean
   motivo_anulacion: string | null

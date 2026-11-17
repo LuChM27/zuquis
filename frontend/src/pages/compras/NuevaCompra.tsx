@@ -39,6 +39,7 @@ export function NuevaCompra({ alRegistrar }: { alRegistrar: (c: Compra) => void 
   const [fecha, setFecha] = useState(hoyIso())
   const [factura, setFactura] = useState('')
   const [estado, setEstado] = useState<'por_pagar' | 'contado'>('por_pagar')
+  const [limitePago, setLimitePago] = useState('')
   const [metodoElegido, setMetodo] = useState('')
   const [lineas, setLineas] = useState<Linea[]>([lineaVacia(0)])
   const [soporte, setSoporte] = useState<string | null>(null)
@@ -126,6 +127,7 @@ export function NuevaCompra({ alRegistrar }: { alRegistrar: (c: Compra) => void 
           estado_pago: estado,
           metodo_pago_id: estado === 'contado' ? metodoId : null,
           desde_caja: estado === 'contado' && desdeCaja,
+          fecha_limite_pago: estado === 'por_pagar' && limitePago ? limitePago : null,
           items: usadas.map((l) => ({
             insumo_id: l.insumo_id,
             presentacion_id: l.presentacion_id || null,
@@ -311,6 +313,15 @@ export function NuevaCompra({ alRegistrar }: { alRegistrar: (c: Compra) => void 
                   </option>
                 ))}
               </Selector>
+            )}
+            {estado === 'por_pagar' && (
+              <Campo
+                etiqueta="Pagar antes del (opcional)"
+                type="date"
+                value={limitePago}
+                min={fecha}
+                onChange={(e) => setLimitePago(e.target.value)}
+              />
             )}
             {estado === 'contado' && <SaleDeCaja activo={desdeCaja} alCambiar={setDesdeCaja} />}
             <div>

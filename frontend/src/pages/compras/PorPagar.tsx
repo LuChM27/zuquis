@@ -4,8 +4,9 @@ import { Aviso, Celda, FilaTabla, ListaDetalle, Tabla, Vacio } from '../../compo
 import { api } from '../../lib/api'
 import { pesos } from '../../lib/formato'
 import type { Compra, CuentaPorPagar, Pagina } from '../../lib/tipos'
+import { Chip } from '../../components/ui'
 import { TarjetaLista } from '../configuracion/comun'
-import { fechaIso } from '../../lib/unidades'
+import { fechaIso, hoyIso } from '../../lib/unidades'
 import { DetalleCompra } from './ListaCompras'
 
 /** Cuentas por pagar por proveedor; al elegir una, sus compras pendientes y el pago. */
@@ -65,10 +66,13 @@ export function PorPagar() {
           </TarjetaLista>
           {compras.length > 0 && (
             <TarjetaLista titulo="Compras pendientes">
-              <Tabla columnas={[{ texto: 'Fecha' }, { texto: 'Factura', ocultarMovil: true }, { texto: 'Total', derecha: true }, { texto: 'Saldo', derecha: true }]}>
+              <Tabla columnas={[{ texto: 'Fecha' }, { texto: 'Pagar antes del' }, { texto: 'Factura', ocultarMovil: true }, { texto: 'Total', derecha: true }, { texto: 'Saldo', derecha: true }]}>
                 {compras.map((c) => (
                   <FilaTabla key={c.id} seleccionada={c.id === actual} alElegir={() => setCompraId(c.id)}>
                     <Celda className="whitespace-nowrap">{fechaIso(c.fecha)}</Celda>
+                    <Celda className="whitespace-nowrap">
+                      <LimitePago fecha={c.fecha_limite_pago} />
+                    </Celda>
                     <Celda ocultarMovil className="text-cafe-medio">{c.numero_factura_proveedor ?? '—'}</Celda>
                     <Celda derecha className="whitespace-nowrap">{pesos(c.total)}</Celda>
                     <Celda derecha className="font-semibold whitespace-nowrap">{pesos(c.saldo)}</Celda>
@@ -82,4 +86,16 @@ export function PorPagar() {
       detalle={actual ? <DetalleCompra key={actual} id={actual} /> : null}
     />
   )
+}
+
+/** Fecha límite de pago; en rojo con "Vencida" si ya pasó (comparando fechas de Bogotá). */
+export function LimitePago({ fecha }: { fecha: string | null }) {
+  if (!fecha) return <span className="text-cafe-suave">Sin fecha</span>
+  if (fecha < hoyIso())
+    return (
+      <span className="inline-flex items-center gap-2">
+        {fechaIso(fecha)} <Chip tono="peligro">Vencida</Chip>
+      </span>
+    )
+  return <>{fechaIso(fecha)}</>
 }

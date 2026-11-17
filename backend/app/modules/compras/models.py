@@ -46,6 +46,7 @@ class Compra(Base, Operativo):
     numero_factura_proveedor: Mapped[str | None] = mapped_column(String(60))
     total: Mapped[int] = mapped_column(MontoPesos())
     estado_pago: Mapped[str] = mapped_column(String(12))
+    fecha_limite_pago: Mapped[date | None]
     soporte_url: Mapped[str | None] = mapped_column(String(300))
     anulada: Mapped[bool] = mapped_column(default=False)
     anulada_en: Mapped[datetime | None]

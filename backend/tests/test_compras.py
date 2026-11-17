@@ -208,3 +208,34 @@ def test_permisos_de_compras(cliente, admin, harina, crear_usuario, login):
         f"{API}/compras/{compra['id']}/anular", headers=produccion, json={"motivo": "x" * 5}
     )
     assert r.status_code == 403
+
+
+def test_compra_a_credito_guarda_fecha_limite(cliente, admin, harina):
+    datos = {
+        "estado_pago": "por_pagar",
+        "fecha_limite_pago": "2026-12-15",
+        "items": [{"insumo_id": harina["id"], "cantidad": "1", "costo_total": 1000}],
+    }
+    r = cliente.post(f"{API}/compras", headers=admin, json=datos)
+    assert r.status_code == 201, r.text
+    assert r.json()["fecha_limite_pago"] == "2026-12-15"
+    lista = cliente.get(f"{API}/compras", headers=admin, params={"estado_pago": "por_pagar"})
+    assert lista.json()["items"][0]["fecha_limite_pago"] == "2026-12-15"
+
+
+def test_fecha_limite_es_opcional(cliente, admin, harina):
+    r = comprar(cliente, admin, harina)
+    assert r.status_code == 201, r.text
+    assert r.json()["fecha_limite_pago"] is None
+
+
+def test_fecha_limite_en_compra_de_contado_se_rechaza(cliente, admin, harina, efectivo):
+    datos = {
+        "estado_pago": "contado",
+        "metodo_pago_id": efectivo,
+        "fecha_limite_pago": "2026-12-15",
+        "items": [{"insumo_id": harina["id"], "cantidad": "1", "costo_total": 1000}],
+    }
+    r = cliente.post(f"{API}/compras", headers=admin, json=datos)
+    assert r.status_code == 422
+    assert "solo aplica a compras por pagar" in r.text
