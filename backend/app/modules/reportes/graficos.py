@@ -39,22 +39,24 @@ def _fin_del_dia(d: date) -> datetime:
 
 
 def por_pagar(db: Session, sede_id: uuid.UUID, corte: date) -> list[dict]:
-    """Compras a crédito no anuladas, hechas hasta el corte, con su saldo."""
+    """Compras a crédito no anuladas, hechas hasta el corte, con el saldo que tenían ese día
+    (solo cuentan los pagos hechos hasta el corte)."""
     pagos = (
         select(PagoCompra.compra_id, func.sum(PagoCompra.monto).label("pagado"))
+        .where(PagoCompra.fecha < _fin_del_dia(corte))
         .group_by(PagoCompra.compra_id)
         .subquery()
     )
+    saldo = Compra.total - func.coalesce(pagos.c.pagado, 0)
     filas = db.execute(
-        select(
-            Compra.fecha, Compra.fecha_limite_pago, Compra.total - func.coalesce(pagos.c.pagado, 0)
-        )
+        select(Compra.fecha, Compra.fecha_limite_pago, saldo)
         .outerjoin(pagos, pagos.c.compra_id == Compra.id)
         .where(
             Compra.sede_id == sede_id,
-            Compra.estado_pago == "por_pagar",
+            Compra.estado_pago != "contado",
             ~Compra.anulada,
             Compra.fecha <= corte,
+            saldo > 0,
         )
     ).all()
     return [{"fecha": f, "fecha_limite_pago": lim, "saldo": int(s)} for f, lim, s in filas]

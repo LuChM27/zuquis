@@ -57,15 +57,26 @@ def _celda_excel(valor: Any, tipo: str) -> Any:
 def a_xlsx(r: Reporte, negocio: str) -> bytes:
     libro = Workbook()
     libro.remove(libro.active)
+    usados: set[str] = set()
     for s in r.secciones:
-        _hoja(libro, r, s, negocio)
+        _hoja(libro, r, s, negocio, _nombre_hoja(s.titulo, usados))
     salida = BytesIO()
     libro.save(salida)
     return salida.getvalue()
 
 
-def _hoja(libro: Workbook, r: Reporte, s: Seccion, negocio: str) -> None:
-    hoja = libro.create_sheet(s.titulo.translate(PROHIBIDOS)[:31])
+def _nombre_hoja(titulo: str, usados: set[str]) -> str:
+    """Nombre válido para Excel: sin caracteres prohibidos, de 1 a 31 caracteres y único."""
+    base = " ".join(titulo.translate(PROHIBIDOS).split())[:28] or "Hoja"
+    nombre, n = base, 2
+    while nombre.lower() in usados:
+        nombre, n = f"{base} {n}", n + 1
+    usados.add(nombre.lower())
+    return nombre
+
+
+def _hoja(libro: Workbook, r: Reporte, s: Seccion, negocio: str, nombre: str) -> None:
+    hoja = libro.create_sheet(nombre)
     for i, linea in enumerate(encabezado(r, negocio), start=1):
         hoja.cell(row=i, column=1, value=linea).font = Font(bold=i == 1, size=13 if i == 1 else 10)
     fila_titulos = 6

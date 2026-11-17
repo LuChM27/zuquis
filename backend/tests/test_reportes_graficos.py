@@ -171,3 +171,33 @@ def test_produccion_solo_ve_lo_suyo(cliente, crear_usuario, login):
     assert set(_grupo(cliente, produccion, "gastos").json()) == {"mermas"}
     assert _grupo(cliente, produccion, "ganancia").status_code == 403
     assert _grupo(cliente, produccion, "cajeros").status_code == 403
+
+
+def test_por_pagar_es_el_saldo_a_la_fecha_de_corte(cliente, admin, metodos, reloj):
+    """Una compra pagada después del corte sigue debiéndose en el corte."""
+    reloj("2026-11-10T09:00:00-05:00")
+    harina = post(cliente, admin, "/insumos", {"nombre": "Harina corte", "unidad_base": "g"})
+    compra = post(
+        cliente,
+        admin,
+        "/compras",
+        {
+            "estado_pago": "por_pagar",
+            "fecha": "2026-11-05",
+            "items": [{"insumo_id": harina["id"], "cantidad": "1", "costo_total": 20000}],
+        },
+    )
+    reloj("2026-11-12T09:00:00-05:00")
+    post(
+        cliente,
+        admin,
+        f"/compras/{compra['id']}/pagos",
+        {
+            "monto": 20000,
+            "metodo_pago_id": metodos["Efectivo"],
+        },
+    )
+    al_corte = _grupo(cliente, admin, "gastos", HOY, HOY).json()["por_pagar"]["sin_fecha"]
+    assert al_corte["d0_15"] == 20000
+    despues = _grupo(cliente, admin, "gastos", date(2026, 11, 12), date(2026, 11, 12)).json()
+    assert despues["por_pagar"]["sin_fecha"]["d0_15"] == 0

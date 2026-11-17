@@ -134,3 +134,21 @@ def test_texto_que_parece_formula_no_se_ejecuta_en_excel():
     celda = hoja.cell(row=7, column=1)
     assert celda.data_type == "s"
     assert celda.value == '=HYPERLINK("http://x","y")'
+
+
+def test_hojas_con_titulos_largos_o_repetidos():
+    from datetime import datetime
+
+    from app.modules.reportes.esquemas import Reporte, col
+    from app.modules.reportes.esquemas import seccion as nueva
+    from app.modules.reportes.exportar import a_xlsx
+
+    largo = "Una sección con un título bastante largo que pasa de 31"
+    secciones = [nueva(t, [col("a", "A")], [{"a": "x"}]) for t in (largo, largo, "[]:*?/\\")]
+    r = Reporte(
+        tipo="ventas", titulo="Ventas", sede="Centro", desde=HOY, hasta=HOY,
+        generado_en=datetime(2026, 11, 10, 20, 0), secciones=secciones,
+    )  # fmt: skip
+    nombres = load_workbook(BytesIO(a_xlsx(r, "Zuqui's"))).sheetnames
+    assert len(nombres) == 3 and len(set(nombres)) == 3
+    assert all(0 < len(n) <= 31 for n in nombres)

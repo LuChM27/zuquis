@@ -98,3 +98,15 @@ test('un rango al revés en la URL se reemplaza por la semana', async () => {
   await waitFor(() => expect(urls.length).toBeGreaterThan(0))
   expect(urls.every((u) => !u.includes('desde=2026-11-30'))).toBe(true)
 })
+
+test('un rango de más de un año en la URL se reemplaza por la semana', async () => {
+  montar(['reportes.ver'], '/reportes?desde=2020-01-01&hasta=2026-11-01')
+  await waitFor(() => expect(urls.length).toBeGreaterThan(0))
+  expect(urls.every((u) => !u.includes('desde=2020-01-01'))).toBe(true)
+})
+
+test('una sede ajena en la URL se ignora', async () => {
+  montar(['reportes.ver'], '/reportes?sede=otra-sede')
+  await waitFor(() => expect(urls.length).toBeGreaterThan(0))
+  expect(urls.every((u) => !u.includes('sede_id='))).toBe(true)
+})

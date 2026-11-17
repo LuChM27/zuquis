@@ -12,6 +12,8 @@ type Vista = 'graficos' | 'tablas'
 
 const FECHA = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
 const GraficosMemo = memo(Graficos)
+// Igual que MAX_DIAS en backend/app/modules/reportes/periodo.py.
+const MAX_DIAS = 366
 
 const mesLargo = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'long', timeZone: 'UTC' })
 const diaSolo = new Intl.DateTimeFormat('es-CO', { day: 'numeric', timeZone: 'UTC' })
@@ -36,11 +38,15 @@ export function Reportes() {
   const tipos = TIPOS_VISIBLES(yo.permisos)
   const desdeUrl = params.get('desde')
   const hastaUrl = params.get('hasta')
-  const sedeUrl = params.get('sede') ?? undefined
+  // Solo una sede del usuario distinta de la actual; cualquier otra se ignora.
+  const sedePedida = params.get('sede')
+  const sedeUrl = sedePedida && sedePedida !== yo.sede.id && yo.sedes.some((s) => s.id === sedePedida) ? sedePedida : undefined
   // Memorizado: los gráficos solo se recalculan si cambia el rango, no en cada render.
   const rango: Rango = useMemo(() => {
     const valido = (f: string | null): f is string => !!f && FECHA.test(f) && !Number.isNaN(Date.parse(f))
-    if (valido(desdeUrl) && valido(hastaUrl) && desdeUrl <= hastaUrl) return { desde: desdeUrl, hasta: hastaUrl, sedeId: sedeUrl }
+    const dias = (a: string, b: string) => (Date.parse(b) - Date.parse(a)) / 86_400_000 + 1
+    if (valido(desdeUrl) && valido(hastaUrl) && desdeUrl <= hastaUrl && dias(desdeUrl, hastaUrl) <= MAX_DIAS)
+      return { desde: desdeUrl, hasta: hastaUrl, sedeId: sedeUrl }
     return { ...atajo('semana'), sedeId: sedeUrl }
   }, [desdeUrl, hastaUrl, sedeUrl])
   const vista: Vista = verGraficos && params.get('vista') !== 'tablas' ? 'graficos' : 'tablas'

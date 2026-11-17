@@ -174,7 +174,11 @@ export function NuevaCompra({ alRegistrar }: { alRegistrar: (c: Compra) => void 
             valor={proveedorId}
             alCambiar={setProveedorId}
           />
-          <Campo etiqueta="Fecha" type="date" value={fecha} max={hoyIso()} onChange={(e) => setFecha(e.target.value)} />
+          <Campo etiqueta="Fecha" type="date" value={fecha} max={hoyIso()} onChange={(e) => {
+              setFecha(e.target.value)
+              // La fecha límite no puede quedar antes de la compra: si pasa, se borra.
+              if (limitePago && limitePago < e.target.value) setLimitePago('')
+            }} />
           <Campo etiqueta="N.º de factura (opcional)" value={factura} maxLength={60} onChange={(e) => setFactura(e.target.value)} />
         </div>
 
