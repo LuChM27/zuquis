@@ -1,11 +1,9 @@
 import { Navigate } from 'react-router'
 import { useSesion, useYo } from '../auth/contexto'
-import { EncabezadoPagina } from '../components/ui'
 import { seccionesVisibles } from '../layout/navegacion'
-import { fechaConDia, saludo } from '../lib/formato'
-import { EnConstruccion } from './EnConstruccion'
+import { Dashboard } from './inicio/Dashboard'
 
-/** Dashboard (mockup docs/mockups/dashboard.png). Las cifras llegan en la fase 4. */
+/** Inicio: el dashboard del día (mockup docs/mockups/dashboard.png). */
 export function Inicio() {
   const yo = useYo()
   const { puede } = useSesion()
@@ -16,11 +14,5 @@ export function Inicio() {
     if (primera && primera.ruta !== '/') return <Navigate to={primera.ruta} replace />
   }
 
-  const ahora = new Date()
-  return (
-    <>
-      <EncabezadoPagina contexto={`${fechaConDia(ahora)} · ${yo.sede.nombre}`} titulo={saludo(ahora)} />
-      <EnConstruccion fase={4} descripcion="Aquí verás las ventas, gastos y ganancia del día, cómo pagaron, lo más vendido, los encargos para hoy y las alertas de inventario." />
-    </>
-  )
+  return <Dashboard />
 }
