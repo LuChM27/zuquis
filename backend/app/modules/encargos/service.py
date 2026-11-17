@@ -37,7 +37,6 @@ from app.modules.encargos.schemas import (
     ItemSalida,
 )
 from app.modules.gastos import service as gastos
-from app.modules.gastos.models import Gasto
 from app.modules.gastos.schemas import GastoCrear
 from app.modules.ventas import service as ventas
 from app.modules.ventas.models import Venta
@@ -475,13 +474,19 @@ def registrar_gasto(
         encargo.id,
         despues={"numero": encargo.numero, "gasto": str(gasto.id), "monto": gasto.monto},
     )
+    db.expire(encargo, ["gastos"])
     return encargo
 
 
 # --- Consultas ------------------------------------------------------------------------------
 
 
-def salida(db: Session, e: Encargo) -> EncargoSalida:
+def _ve_todos_los_gastos(ctx: Contexto) -> bool:
+    """Igual que en Gastos: quien solo registra gastos de caja ve los suyos."""
+    return ctx.puede("gastos.crear") or ctx.puede("reportes.ver")
+
+
+def salida(db: Session, ctx: Contexto, e: Encargo) -> EncargoSalida:
     cliente = db.get(Cliente, e.cliente_id)
     metodos = dict(
         db.execute(
@@ -491,10 +496,11 @@ def salida(db: Session, e: Encargo) -> EncargoSalida:
         ).all()
     )
     recibido = abonado(e)
-    gastos_deco = list(
-        db.scalars(
-            select(Gasto).where(Gasto.encargo_id == e.id).order_by(Gasto.fecha, Gasto.creado_en)
-        )
+    gastos_deco = e.gastos
+    visibles = (
+        gastos_deco
+        if _ve_todos_los_gastos(ctx)
+        else [g for g in gastos_deco if g.usuario_id == ctx.usuario_id]
     )
     return EncargoSalida(
         id=e.id,
@@ -562,7 +568,7 @@ def salida(db: Session, e: Encargo) -> EncargoSalida:
                 fuente=g.fuente,
                 estado=g.estado,
             )
-            for g in gastos_deco
+            for g in visibles
         ],
     )
 
@@ -605,7 +611,7 @@ def listar(
             filtros.append(Encargo.numero == int(texto))
         consulta = consulta.join(Cliente, Cliente.id == Encargo.cliente_id).where(or_(*filtros))
     filas, total = paginar(db, consulta, params)
-    return [salida(db, e) for e in filas], total
+    return [salida(db, ctx, e) for e in filas], total
 
 
 def conteo(db: Session, ctx: Contexto, desde: date, hasta: date) -> list[ConteoDia]:

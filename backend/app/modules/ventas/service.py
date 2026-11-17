@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, selectinload
 
@@ -54,6 +54,9 @@ from app.shared.dinero import aplicar_porcentaje, costo_linea
 from app.shared.errores import Conflicto, ErrorNegocio, NoEncontrado
 from app.shared.fechas import ahora, zona
 from app.shared.paginacion import ParamsPagina, RangoFechas, paginar
+
+# Las líneas de decoración de un encargo (sin producto) empiezan así; el resumen las agrupa.
+PREFIJO_DECORACION = "Decoración: "
 
 
 def siguiente_numero(db: Session, sede_id: uuid.UUID, tipo: str) -> int:
@@ -537,7 +540,7 @@ def crear_de_encargo(
                     precios_mods=[],
                     bruto=i.decoracion_precio,
                     descuento=0,
-                    descripcion=f"Decoración: {i.decoracion}"[:200],
+                    descripcion=f"{PREFIJO_DECORACION}{i.decoracion}"[:200],
                 )
             )
     saldo = encargo.total - abonado
@@ -755,7 +758,14 @@ def resumen(db: Session, ctx: Contexto, desde: date, hasta: date) -> ResumenVent
         .order_by(MetodoPago.orden, MetodoPago.nombre)
     ).all()
     # Los ítems personalizados de un encargo no tienen producto: se agrupan por su descripción.
-    nombre = func.coalesce(Producto.nombre, VentaItem.descripcion)
+    # Las decoraciones, cada una con su referencia, van juntas como "Decoración".
+    nombre = func.coalesce(
+        Producto.nombre,
+        case(
+            (VentaItem.descripcion.startswith(PREFIJO_DECORACION), "Decoración"),
+            else_=VentaItem.descripcion,
+        ),
+    )
     productos = db.execute(
         select(
             VentaItem.producto_id,

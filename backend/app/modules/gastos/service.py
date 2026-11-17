@@ -12,7 +12,6 @@ from app.modules.auditoria.service import auditar
 from app.modules.auth.models import Usuario
 from app.modules.caja import service as caja
 from app.modules.configuracion.models import MetodoPago
-from app.modules.encargos.models import Encargo
 from app.modules.gastos.models import (
     CATEGORIA_DECORACION,
     CATEGORIAS_INICIALES,
@@ -66,6 +65,13 @@ def editar_categoria(
 ) -> CategoriaGasto:
     c = _categoria(db, ctx, categoria_id)
     cambios = datos.model_dump(exclude_unset=True)
+    renombra = "nombre" in cambios and cambios["nombre"] != c.nombre
+    if c.sistema and (renombra or cambios.get("activa") is False):
+        raise Conflicto(
+            "CATEGORIA_DEL_SISTEMA",
+            "Esta categoría la usan los gastos de decoración de los encargos: "
+            "no se puede renombrar ni desactivar.",
+        )
     for campo, valor in cambios.items():
         setattr(c, campo, valor)
     guardar_unico(db, mensaje=DUPLICADA)
@@ -160,8 +166,7 @@ def salida(db: Session, g: Gasto) -> GastoSalida:
     s.categoria, s.cuenta_puc = cat.nombre, cat.cuenta_puc
     s.metodo = db.scalar(select(MetodoPago.nombre).where(MetodoPago.id == g.metodo_pago_id))
     s.usuario = db.scalar(select(Usuario.nombre).where(Usuario.id == g.usuario_id))
-    if g.encargo_id:
-        s.encargo_numero = db.scalar(select(Encargo.numero).where(Encargo.id == g.encargo_id))
+    s.encargo_numero = g.encargo.numero if g.encargo else None
     return s
 
 

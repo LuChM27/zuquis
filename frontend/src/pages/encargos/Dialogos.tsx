@@ -120,8 +120,10 @@ export function DialogoGastoDecoracion({ encargo, abierto, alCerrar }: { encargo
   const [descripcion, setDescripcion] = useState('')
   const [monto, setMonto] = useState<number | null>(null)
   const [fuente, setFuente] = useState<FuenteGasto>('caja')
-  const [metodo, setMetodo] = useState('')
+  const [metodoElegido, setMetodo] = useState('')
   const [intento, setIntento] = useState(false)
+  // De la caja, por defecto en efectivo, como en Gastos.
+  const metodo = metodoElegido || (fuente === 'caja' ? (metodos.data?.find((m) => m.es_efectivo)?.id ?? '') : '')
   const registrar = useAccionEncargo<{ descripcion: string; monto: number; metodo_pago_id: string; fuente: FuenteGasto }>(
     `/encargos/${encargo.id}/gastos`,
     () => {
@@ -169,7 +171,10 @@ export function DialogoGastoDecoracion({ encargo, abierto, alCerrar }: { encargo
                   type="button"
                   role="radio"
                   aria-checked={fuente === f}
-                  onClick={() => setFuente(f)}
+                  onClick={() => {
+                    setFuente(f)
+                    setMetodo('')
+                  }}
                   className={unir(
                     'h-11 rounded-control border px-4 text-[15px]',
                     fuente === f ? 'border-fucsia bg-rosa-suave font-semibold text-fucsia-oscuro' : 'border-dorado-claro bg-blanco hover:border-dorado-borde',
@@ -191,7 +196,7 @@ export function DialogoGastoDecoracion({ encargo, abierto, alCerrar }: { encargo
           </Aviso>
         )}
         {registrar.isError && <Aviso>{registrar.error.message}</Aviso>}
-        <Boton type="submit" disabled={registrar.isPending || cajaCerrada}>
+        <Boton type="submit" disabled={registrar.isPending || cajaCerrada || metodos.isPending}>
           {registrar.isPending ? 'Registrando…' : monto ? `Registrar gasto de ${pesos(monto)}` : 'Registrar gasto'}
         </Boton>
       </form>

@@ -83,6 +83,12 @@ _CODIGOS_HTTP = {
 }
 
 
+def _mensaje(error: dict) -> str:
+    """Pydantic antepone "Value error, " a los mensajes de las reglas propias; se quita."""
+    texto = str(error["msg"])
+    return texto.removeprefix("Value error, ") if error["type"] == "value_error" else texto
+
+
 def registrar_manejadores(app: FastAPI) -> None:
     @app.exception_handler(ErrorNegocio)
     async def _negocio(_: Request, exc: ErrorNegocio) -> JSONResponse:
@@ -91,12 +97,13 @@ def registrar_manejadores(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def _validacion(_: Request, exc: RequestValidationError) -> JSONResponse:
         errores = [
-            {"campo": ".".join(str(p) for p in e["loc"][1:]), "mensaje": e["msg"]}
+            {"campo": ".".join(str(p) for p in e["loc"][1:]), "mensaje": _mensaje(e)}
             for e in exc.errors()
         ]
-        return _respuesta(
-            422, "VALIDACION", "Hay datos inválidos en la petición.", {"errores": errores}
-        )
+        # Si una regla del negocio explica el error, ese es el mensaje principal.
+        propios = [_mensaje(e) for e in exc.errors() if e["type"] == "value_error"]
+        mensaje = propios[0] if propios else "Hay datos inválidos en la petición."
+        return _respuesta(422, "VALIDACION", mensaje, {"errores": errores})
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(_: Request, exc: StarletteHTTPException) -> JSONResponse:

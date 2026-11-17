@@ -27,13 +27,15 @@ class ItemEntrada(BaseModel):
         default=None, max_length=200, description="Qué decoración lleva (texto libre)"
     )
     decoracion_precio: Pesos | None = Field(
-        default=None, gt=0, description="Valor de la decoración por el ítem completo"
+        default=None, description="Valor de la decoración por el ítem completo; mayor que $0"
     )
 
     @model_validator(mode="after")
     def _personalizado(self):
         self.decoracion = (self.decoracion or "").strip() or None
-        if (self.decoracion is None) != (self.decoracion_precio is None):
+        decorada = self.decoracion is not None or self.decoracion_precio is not None
+        completa = self.decoracion is not None and (self.decoracion_precio or 0) > 0
+        if decorada and not completa:
             raise ValueError("La decoración necesita referencia y valor.")
         if self.producto_id is None:
             if not (self.descripcion or "").strip():

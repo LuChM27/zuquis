@@ -3,12 +3,16 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.modelo import Base, Operativo
 from app.shared.dinero import MontoPesos, NumericCantidad
+
+if TYPE_CHECKING:
+    from app.modules.gastos.models import Gasto
 
 ESTADOS = ("pendiente", "en_produccion", "listo", "entregado", "cancelado")
 ACTIVOS = ("pendiente", "en_produccion", "listo")
@@ -59,6 +63,10 @@ class Encargo(Base, Operativo):
     )
     abonos: Mapped[list["EncargoAbono"]] = relationship(
         back_populates="encargo", order_by="EncargoAbono.fecha"
+    )
+    # Gastos de materiales de decoración; se cargan en lote al listar.
+    gastos: Mapped[list["Gasto"]] = relationship(
+        order_by="(Gasto.fecha, Gasto.creado_en)", lazy="selectin", viewonly=True
     )
 
 

@@ -538,6 +538,8 @@ export interface CategoriaGasto {
   nombre: string
   cuenta_puc: string | null
   activa: boolean
+  /** La usa el sistema (gastos de decoración): no se renombra ni se desactiva. */
+  sistema: boolean
 }
 
 export interface Gasto {

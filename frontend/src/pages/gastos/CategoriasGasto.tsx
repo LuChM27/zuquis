@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Celda, Interruptor, ListaDetalle, PanelDetalle, Tabla } from '../../components/formulario'
-import { Boton, Campo, Tarjeta } from '../../components/ui'
+import { Boton, Campo, Chip, Tarjeta } from '../../components/ui'
 import { useAvisos } from '../../components/usarAvisos'
 import { api } from '../../lib/api'
 import type { CategoriaGasto } from '../../lib/tipos'
@@ -32,13 +32,19 @@ export function CategoriasGasto() {
                 <Celda className="font-medium">{c.nombre}</Celda>
                 <Celda className="text-cafe-medio">{c.cuenta_puc ?? '—'}</Celda>
                 <Celda derecha>
-                  <div className="inline-block">
-                    <Interruptor
-                      etiqueta={`${c.nombre} activa`}
-                      activo={c.activa}
-                      alCambiar={(activa) => editar.mutate({ id: c.id, activa })}
-                    />
-                  </div>
+                  {c.sistema ? (
+                    <span title="La usan los gastos de decoración de los encargos">
+                      <Chip tono="neutro">Del sistema</Chip>
+                    </span>
+                  ) : (
+                    <div className="inline-block">
+                      <Interruptor
+                        etiqueta={`${c.nombre} activa`}
+                        activo={c.activa}
+                        alCambiar={(activa) => editar.mutate({ id: c.id, activa })}
+                      />
+                    </div>
+                  )}
                 </Celda>
               </tr>
             ))}

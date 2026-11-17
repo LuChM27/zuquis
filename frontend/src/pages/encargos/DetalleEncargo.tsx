@@ -164,6 +164,9 @@ export function DetalleEncargo({ encargo: e, hoy, alEditar }: { encargo: Encargo
               <dd className={e.decoracion_cobrada - e.gasto_decoracion < 0 ? 'text-peligro-texto' : undefined}>{pesos(e.decoracion_cobrada - e.gasto_decoracion)}</dd>
             </div>
           </dl>
+          {e.gastos_decoracion.reduce((s, g) => s + (g.estado === 'registrado' ? g.monto : 0), 0) < e.gasto_decoracion && (
+            <p className="mt-3 text-[14px] text-cafe-medio">Incluye gastos registrados por la administración.</p>
+          )}
           {e.gastos_decoracion.length > 0 && (
             <ul className="mt-3 grid gap-1 text-[14px] text-cafe-medio">
               {e.gastos_decoracion.map((g) => (

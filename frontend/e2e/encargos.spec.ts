@@ -141,7 +141,8 @@ test('decoración: torta con decoración, gasto de materiales ligado y línea pr
   const gasto = page.getByRole('dialog', { name: 'Gasto de decoración' })
   await gasto.getByLabel('Qué se compró').fill('Fondant y topper')
   await gasto.getByLabel('Valor').fill('9000')
-  await gasto.getByRole('radio', { name: 'Efectivo' }).click()
+  // De la caja, Efectivo viene elegido.
+  await expect(gasto.getByRole('radio', { name: 'Efectivo' })).toHaveAttribute('aria-checked', 'true')
   await gasto.getByRole('button', { name: 'Registrar gasto de $9.000' }).click()
   await expect(deco).toContainText('Fondant y topper')
   await expect(deco).toContainText('$16.000')

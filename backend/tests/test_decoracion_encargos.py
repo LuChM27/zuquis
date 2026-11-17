@@ -5,6 +5,7 @@ from decimal import Decimal as D
 
 import pytest
 
+from tests.conftest import SEDE_PRINCIPAL
 from tests.fixtures_encargos import (
     abonar,
     alistar,
@@ -215,3 +216,119 @@ def test_cajero_solo_desde_la_caja(cliente, decorado, metodos, crear_usuario, lo
     assert r.status_code == 403, r.text
     r = gasto_decoracion(cliente, cajero, decorado, metodos["Efectivo"])
     assert r.status_code == 201, r.text
+
+
+# --- Pendientes de la revisión ---------------------------------------------------------------
+
+
+MENSAJE_INCOMPLETA = "La decoración necesita referencia y valor."
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"decoracion": "Letras doradas"},
+        {"decoracion_precio": 15000},
+        {"decoracion": "   ", "decoracion_precio": 15000},
+        {"decoracion": "Letras doradas", "decoracion_precio": 0},
+    ],
+)
+def test_decoracion_incompleta_dice_por_que(cliente, admin, cliente_a, extra):
+    item = {"descripcion": "Torta 1 lb", "cantidad": "1", "precio": 90000} | extra
+    r = crear_encargo(cliente, admin, con_items(cliente_a["id"], item))
+    assert r.status_code == 422, r.text
+    assert r.json()["mensaje"] == MENSAJE_INCOMPLETA
+    assert [e["mensaje"] for e in r.json()["detalle"]["errores"]] == [MENSAJE_INCOMPLETA]
+
+
+def test_gasto_sobre_encargo_de_otra_sede_no_existe(
+    cliente, decorado, metodos, crear_usuario, login, db
+):
+    from app.modules.configuracion.models import Sede
+
+    otra = Sede(nombre="Sede Norte")
+    db.add(otra)
+    db.commit()
+    headers = login(crear_usuario("admin", sede_id=otra.id), sede_id=otra.id)
+    r = gasto_decoracion(cliente, headers, decorado, metodos["Efectivo"])
+    assert r.status_code == 404, r.text
+
+
+def test_cajero_tampoco_registra_gastos_de_los_duenos(
+    cliente, decorado, metodos, crear_usuario, login
+):
+    cajero = login(crear_usuario("cajero"))
+    r = gasto_decoracion(cliente, cajero, decorado, metodos["Efectivo"], fuente="duenos")
+    assert r.status_code == 403, r.text
+
+
+def test_anular_la_venta_y_reentregar_da_el_mismo_total(
+    cliente, admin, decorado, metodos, caja_abierta
+):
+    venta = entregar_y_ver_venta(cliente, admin, decorado, 115000, metodos["Efectivo"])
+    r = cliente.post(
+        f"{API}/ventas/{venta['id']}/anular", headers=admin, json={"motivo": "Error de cobro"}
+    )
+    assert r.status_code == 200, r.text
+    r = entregar(
+        cliente, admin, decorado, [{"metodo_pago_id": metodos["Efectivo"], "monto": 115000}]
+    )
+    assert r.status_code == 200, r.text
+    otra = cliente.get(f"{API}/ventas/{r.json()['venta_id']}", headers=admin).json()
+    assert otra["total"] == venta["total"] == 115000
+    assert [i["producto"] for i in otra["items"]] == [i["producto"] for i in venta["items"]]
+
+
+def test_categoria_de_decoracion_no_se_renombra_ni_desactiva(cliente, admin):
+    cats = cliente.get(f"{API}/categorias-gasto", headers=admin).json()
+    deco = next(c for c in cats if c["nombre"] == "Materiales de decoración")
+    assert deco["sistema"] is True
+    assert all(c["sistema"] is False for c in cats if c["id"] != deco["id"])
+    for cambio in ({"nombre": "Decoración"}, {"activa": False}):
+        r = cliente.patch(f"{API}/categorias-gasto/{deco['id']}", headers=admin, json=cambio)
+        assert (r.status_code, r.json()["codigo"]) == (409, "CATEGORIA_DEL_SISTEMA"), r.text
+    r = cliente.patch(
+        f"{API}/categorias-gasto/{deco['id']}", headers=admin, json={"cuenta_puc": "5140"}
+    )
+    assert r.status_code == 200, r.text
+
+
+def test_el_resumen_agrupa_la_decoracion(cliente, admin, cliente_a, metodos, caja_abierta):
+    for referencia, valor in (("Letras doradas", 20000), ("Topper de foto", 15000)):
+        item = DECORADA | {"decoracion": referencia, "decoracion_precio": valor}
+        e = crear_encargo(cliente, admin, con_items(cliente_a["id"], item)).json()
+        entregar_y_ver_venta(cliente, admin, e, e["total"], metodos["Efectivo"])
+    productos = cliente.get(f"{API}/ventas/resumen", headers=admin).json()["productos"]
+    deco = [p for p in productos if p["producto"].startswith("Decoración")]
+    assert [(p["producto"], p["valor"]) for p in deco] == [("Decoración", 35000)]
+
+
+def test_solo_con_gastos_no_se_ve_el_encargo(
+    cliente, admin, decorado, metodos, crear_usuario, login
+):
+    rol = cliente.post(
+        f"{API}/roles", headers=admin, json={"nombre": "Solo gastos", "permisos": ["gastos.crear"]}
+    ).json()
+    usuario = crear_usuario("produccion")
+    cliente.patch(
+        f"{API}/usuarios/{usuario.id}",
+        headers=admin,
+        json={"roles": [{"rol_id": rol["id"], "sede_id": str(SEDE_PRINCIPAL)}]},
+    )
+    headers = login(usuario)
+    r = gasto_decoracion(cliente, headers, decorado, metodos["Nequi"], fuente="banco")
+    assert r.status_code == 403, r.text
+
+
+def test_cajero_solo_ve_sus_gastos_de_decoracion(
+    cliente, admin, decorado, metodos, caja_abierta, crear_usuario, login
+):
+    gasto_decoracion(cliente, admin, decorado, metodos["Nequi"], 7000, fuente="banco")
+    cajero = login(crear_usuario("cajero"))
+    gasto_decoracion(cliente, cajero, decorado, metodos["Efectivo"], 2000)
+    visto = cliente.get(f"{API}/encargos/{decorado['id']}", headers=cajero).json()
+    assert [g["monto"] for g in visto["gastos_decoracion"]] == [2000]
+    # El resumen sí cuenta todo lo gastado: es la cuenta del encargo, no el detalle de cada gasto.
+    assert visto["gasto_decoracion"] == 9000
+    completo = cliente.get(f"{API}/encargos/{decorado['id']}", headers=admin).json()
+    assert [g["monto"] for g in completo["gastos_decoracion"]] == [7000, 2000]

@@ -28,6 +28,9 @@ class CategoriaSalida(BaseModel):
     nombre: str
     cuenta_puc: str | None
     activa: bool
+    sistema: bool = Field(
+        default=False, description="La usa el sistema: no se renombra ni se desactiva"
+    )
 
 
 class GastoCrear(BaseModel):

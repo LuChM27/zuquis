@@ -21,22 +21,30 @@ from app.modules.encargos.schemas import (
     Estado,
     GastoDecoracionEntrada,
 )
-from app.shared.errores import ErrorNegocio
+from app.shared.errores import ErrorNegocio, SinPermiso
 from app.shared.fechas import hoy
 from app.shared.paginacion import Pagina, ParamsPagina, RangoFechas
 
 router = APIRouter(tags=["Encargos"])
 
 operador = requiere("encargos.crear")
-lector = requiere_alguno("encargos.crear", "encargos.devolver_abono", "reportes.ver")
+LECTURA = ("encargos.crear", "encargos.devolver_abono", "reportes.ver")
+lector = requiere_alguno(*LECTURA)
 registrador_gastos = requiere_alguno("gastos.crear", "gastos.crear_caja")
+
+
+def gastos_de_encargo(ctx: Contexto = Depends(registrador_gastos)) -> Contexto:
+    """Registra gastos y además puede ver el encargo (la respuesta es el encargo completo)."""
+    if not any(ctx.puede(p) for p in LECTURA):
+        raise SinPermiso(" | ".join(LECTURA))
+    return ctx
 
 
 def _con_idempotencia(db, ctx, idem, status, operacion):
     """Las operaciones con dinero no se duplican si el navegador reintenta."""
     if (previa := idem.iniciar(db, ctx)) is not None:
         return previa
-    salida = service.salida(db, operacion()).model_dump(mode="json")
+    salida = service.salida(db, ctx, operacion()).model_dump(mode="json")
     idem.guardar(db, status, salida)
     db.commit()
     return salida
@@ -87,7 +95,7 @@ def crear_encargo(
 def ver_encargo(
     encargo_id: uuid.UUID, ctx: Contexto = Depends(lector), db: Session = Depends(obtener_db)
 ):
-    return service.salida(db, service.obtener(db, ctx, encargo_id))
+    return service.salida(db, ctx, service.obtener(db, ctx, encargo_id))
 
 
 @router.patch("/encargos/{encargo_id}", response_model=EncargoSalida)
@@ -100,7 +108,7 @@ def editar_encargo(
     """Solo mientras está pendiente (RN-23): después responde ENCARGO_EN_PRODUCCION."""
     encargo = service.editar(db, ctx, encargo_id, datos)
     db.commit()
-    return service.salida(db, encargo)
+    return service.salida(db, ctx, encargo)
 
 
 @router.post("/encargos/{encargo_id}/estado", response_model=EncargoSalida)
@@ -113,7 +121,7 @@ def cambiar_estado(
     """pendiente → en_produccion → listo. Entregar y cancelar tienen su propia operación."""
     encargo = service.cambiar_estado(db, ctx, encargo_id, datos.estado)
     db.commit()
-    return service.salida(db, encargo)
+    return service.salida(db, ctx, encargo)
 
 
 @router.post("/encargos/{encargo_id}/abonos", response_model=EncargoSalida, status_code=201)
@@ -132,7 +140,7 @@ def registrar_abono(
 def registrar_gasto_decoracion(
     encargo_id: uuid.UUID,
     datos: GastoDecoracionEntrada,
-    ctx: Contexto = Depends(registrador_gastos),
+    ctx: Contexto = Depends(gastos_de_encargo),
     idem: Idempotencia = Depends(idempotencia()),
     db: Session = Depends(obtener_db),
 ):
@@ -153,7 +161,7 @@ def anular_abono(
 ):
     encargo = service.anular_abono(db, ctx, encargo_id, abono_id, datos.motivo)
     db.commit()
-    return service.salida(db, encargo)
+    return service.salida(db, ctx, encargo)
 
 
 @router.post("/encargos/{encargo_id}/entregar", response_model=EncargoSalida)
