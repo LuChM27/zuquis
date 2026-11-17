@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.shared.dinero import Cantidad, CostoUnitario, Pesos
 from app.shared.esquemas import EdicionParcial
+from app.shared.fechas import hoy
 
 
 class ProveedorCrear(BaseModel):
@@ -75,6 +76,10 @@ class CompraCrear(BaseModel):
             raise ValueError("Una compra de contado necesita el método de pago.")
         if self.estado_pago == "contado" and self.fecha_limite_pago is not None:
             raise ValueError("La fecha límite de pago solo aplica a compras por pagar.")
+        if self.fecha_limite_pago and self.fecha_limite_pago < (self.fecha or hoy()):
+            raise ValueError(
+                "La fecha límite de pago no puede ser anterior a la fecha de la compra."
+            )
         return self
 
 

@@ -23,6 +23,7 @@ export function PorPagar() {
   const compras = (pendientes.data?.items ?? []).filter((c) => !c.anulada && c.proveedor_id === (elegido ?? null))
   const actual = compras.find((c) => c.id === compraId)?.id ?? compras[0]?.id
   const total = lista.reduce((s, c) => s + c.saldo, 0)
+  const hoy = hoyIso()
 
   return (
     <ListaDetalle
@@ -71,7 +72,7 @@ export function PorPagar() {
                   <FilaTabla key={c.id} seleccionada={c.id === actual} alElegir={() => setCompraId(c.id)}>
                     <Celda className="whitespace-nowrap">{fechaIso(c.fecha)}</Celda>
                     <Celda className="whitespace-nowrap">
-                      <LimitePago fecha={c.fecha_limite_pago} />
+                      <LimitePago fecha={c.fecha_limite_pago} hoy={hoy} />
                     </Celda>
                     <Celda ocultarMovil className="text-cafe-medio">{c.numero_factura_proveedor ?? '—'}</Celda>
                     <Celda derecha className="whitespace-nowrap">{pesos(c.total)}</Celda>
@@ -89,9 +90,9 @@ export function PorPagar() {
 }
 
 /** Fecha límite de pago; en rojo con "Vencida" si ya pasó (comparando fechas de Bogotá). */
-export function LimitePago({ fecha }: { fecha: string | null }) {
+export function LimitePago({ fecha, hoy = hoyIso() }: { fecha: string | null; hoy?: string }) {
   if (!fecha) return <span className="text-cafe-suave">Sin fecha</span>
-  if (fecha < hoyIso())
+  if (fecha < hoy)
     return (
       <span className="inline-flex items-center gap-2">
         {fechaIso(fecha)} <Chip tono="peligro">Vencida</Chip>

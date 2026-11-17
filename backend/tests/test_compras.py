@@ -239,3 +239,15 @@ def test_fecha_limite_en_compra_de_contado_se_rechaza(cliente, admin, harina, ef
     r = cliente.post(f"{API}/compras", headers=admin, json=datos)
     assert r.status_code == 422
     assert "solo aplica a compras por pagar" in r.text
+
+
+def test_fecha_limite_anterior_a_la_compra_se_rechaza(cliente, admin, harina):
+    datos = {
+        "estado_pago": "por_pagar",
+        "fecha": "2026-11-10",
+        "fecha_limite_pago": "2026-11-09",
+        "items": [{"insumo_id": harina["id"], "cantidad": "1", "costo_total": 1000}],
+    }
+    r = cliente.post(f"{API}/compras", headers=admin, json=datos)
+    assert r.status_code == 422
+    assert "no puede ser anterior a la fecha de la compra" in r.text
