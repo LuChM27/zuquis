@@ -1,13 +1,18 @@
 import uuid
 from datetime import date
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
+from pydantic import TypeAdapter
 from sqlalchemy.orm import Session
 
 from app.core.db import obtener_db
-from app.core.deps import Contexto, requiere_alguno
+from app.core.deps import Contexto, requiere, requiere_alguno
 from app.modules.caja.service import caja_abierta
+from app.modules.reportes.dashboard import Dashboard, dashboard
 from app.modules.reportes.esquemas import Reporte
+from app.modules.reportes.graficos import Grupo, grupo
 from app.modules.reportes.periodo import SIN_CAJA, Periodo, resolver_periodo
 from app.modules.reportes.tablas import REPORTES as REPORTES_VENTAS
 from app.modules.reportes.tablas_dinero import REPORTES_DINERO
@@ -17,6 +22,8 @@ from app.shared.errores import NoEncontrado, SinPermiso
 router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
 lector = requiere_alguno("reportes.ver", "reportes.ver_caja_propia", "reportes.ver_inventario")
+
+_JSON = TypeAdapter(dict[str, Any])
 
 REPORTES = REPORTES_VENTAS | REPORTES_DINERO | REPORTES_INVENTARIO
 
@@ -62,6 +69,28 @@ def periodo_de(
         hasta=p.hasta,
         caja_sesion_id=sesion.id if sesion else SIN_CAJA,
     )
+
+
+@router.get("/dashboard", response_model=Dashboard)
+def ver_dashboard(
+    ctx: Contexto = Depends(requiere("reportes.ver")), db: Session = Depends(obtener_db)
+):
+    return dashboard(db, ctx)
+
+
+@router.get("/graficos")
+def ver_graficos(
+    grupo_: Grupo = Query(..., alias="grupo"),
+    desde: date | None = Query(None),
+    hasta: date | None = Query(None),
+    sede_id: uuid.UUID | None = Query(None),
+    ctx: Contexto = Depends(lector),
+    db: Session = Depends(obtener_db),
+) -> JSONResponse:
+    """Datos de un grupo de la galería (se pide cada grupo cuando aparece en pantalla)."""
+    p = resolver_periodo(db, ctx, desde, hasta, sede_id)
+    # Pydantic en modo JSON deja los Decimal como string (jsonable_encoder los haría float).
+    return JSONResponse(_JSON.dump_python(grupo(db, p, grupo_, ctx.permisos), mode="json"))
 
 
 @router.get("/{tipo}", response_model=Reporte)
