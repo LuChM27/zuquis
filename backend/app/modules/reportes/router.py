@@ -1,19 +1,22 @@
 import uuid
 from datetime import date
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import TypeAdapter
 from sqlalchemy.orm import Session
 
 from app.core.db import obtener_db
 from app.core.deps import Contexto, requiere, requiere_alguno
 from app.modules.caja.service import caja_abierta
+from app.modules.configuracion.service import valor
 from app.modules.reportes.dashboard import Dashboard, dashboard
 from app.modules.reportes.esquemas import Reporte
+from app.modules.reportes.exportar import a_pdf, a_xlsx
 from app.modules.reportes.graficos import Grupo, grupo
 from app.modules.reportes.periodo import SIN_CAJA, Periodo, resolver_periodo
+from app.modules.reportes.puc import reporte_puc
 from app.modules.reportes.tablas import REPORTES as REPORTES_VENTAS
 from app.modules.reportes.tablas_dinero import REPORTES_DINERO
 from app.modules.reportes.tablas_inventario import REPORTES_INVENTARIO
@@ -23,9 +26,10 @@ router = APIRouter(prefix="/reportes", tags=["Reportes"])
 
 lector = requiere_alguno("reportes.ver", "reportes.ver_caja_propia", "reportes.ver_inventario")
 
+XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 _JSON = TypeAdapter(dict[str, Any])
 
-REPORTES = REPORTES_VENTAS | REPORTES_DINERO | REPORTES_INVENTARIO
+REPORTES = REPORTES_VENTAS | REPORTES_DINERO | REPORTES_INVENTARIO | {"puc": reporte_puc}
 
 _TODO = frozenset({"reportes.ver"})
 _CAJA = frozenset({"reportes.ver", "reportes.ver_caja_propia"})
@@ -43,6 +47,7 @@ ACCESO: dict[str, frozenset[str]] = {
     "utilidad-productos": _TODO,
     "inventario-valorizado": _INVENTARIO,
     "mermas": _INVENTARIO,
+    "puc": _TODO,
 }
 
 
@@ -99,8 +104,23 @@ def ver_reporte(
     desde: date | None = Query(None, description="Fecha inicial ISO (aaaa-mm-dd)"),
     hasta: date | None = Query(None, description="Fecha final ISO, inclusive"),
     sede_id: uuid.UUID | None = Query(None),
+    formato: Literal["json", "xlsx", "pdf"] = Query("json"),
     ctx: Contexto = Depends(lector),
     db: Session = Depends(obtener_db),
 ):
+    if formato != "json" and not ctx.puede("reportes.exportar"):
+        raise SinPermiso("reportes.exportar")
     p = periodo_de(db, ctx, tipo, desde, hasta, sede_id)
-    return REPORTES[tipo](db, p)
+    r = REPORTES[tipo](db, p)
+    if formato == "json":
+        return r
+    negocio = valor(db, p.sede_id, "negocio").nombre
+    nombre = f"zuquis-{tipo}-{p.desde}-{p.hasta}.{formato}"
+    contenido, tipo_mime = (
+        (a_xlsx(r, negocio), XLSX) if formato == "xlsx" else (a_pdf(r, negocio), "application/pdf")
+    )
+    return Response(
+        contenido,
+        media_type=tipo_mime,
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
+    )
