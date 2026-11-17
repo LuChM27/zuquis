@@ -3,6 +3,7 @@ import { COLORES, enMiles, etiquetaHora, resaltarMaximo } from './tema'
 test('enMiles abrevia como en el mockup', () => {
   expect(enMiles(64000)).toBe('64 mil')
   expect(enMiles(1250000)).toBe('1,3 M')
+  expect(enMiles(999500)).toBe('1 M')
   expect(enMiles(800)).toBe('$800')
   expect(enMiles(0)).toBe('$0')
 })

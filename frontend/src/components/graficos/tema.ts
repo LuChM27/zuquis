@@ -29,7 +29,8 @@ const decimal = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 1 })
 export function enMiles(valor: number): string {
   const abs = Math.abs(valor)
   const signo = valor < 0 ? '−' : ''
-  if (abs >= 1_000_000) return `${signo}${decimal.format(abs / 1_000_000)} M`
+  // 999.500 se redondea a 1000 mil: desde ahí se muestra en millones.
+  if (abs >= 999_500) return `${signo}${decimal.format(abs / 1_000_000)} M`
   if (abs >= 1_000) return `${signo}${Math.round(abs / 1_000)} mil`
   return `${signo}$${abs}`
 }
