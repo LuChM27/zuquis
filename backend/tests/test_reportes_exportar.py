@@ -105,3 +105,32 @@ def test_puc_sin_codigo_visible(cliente, admin, carta, reloj):
         for f in seccion(reporte(cliente, admin, "puc", HOY, HOY).json(), "Por cuenta")["filas"]
     }
     assert cuentas["Sin código"] == 4500
+
+
+def test_texto_que_parece_formula_no_se_ejecuta_en_excel():
+    """Un nombre como "=HYPERLINK(...)" escrito por un usuario sale como texto, no fórmula."""
+    from datetime import datetime
+
+    from app.modules.reportes.esquemas import Reporte, col
+    from app.modules.reportes.esquemas import seccion as nueva
+    from app.modules.reportes.exportar import a_xlsx
+
+    r = Reporte(
+        tipo="ventas",
+        titulo="Ventas",
+        sede="Centro",
+        desde=HOY,
+        hasta=HOY,
+        generado_en=datetime(2026, 11, 10, 20, 0),
+        secciones=[
+            nueva(
+                "Por producto",
+                [col("nombre", "Producto"), col("ventas", "Ventas", "pesos")],
+                [{"nombre": '=HYPERLINK("http://x","y")', "ventas": 1000}],
+            )
+        ],
+    )
+    hoja = load_workbook(BytesIO(a_xlsx(r, "Zuqui's")))["Por producto"]
+    celda = hoja.cell(row=7, column=1)
+    assert celda.data_type == "s"
+    assert celda.value == '=HYPERLINK("http://x","y")'

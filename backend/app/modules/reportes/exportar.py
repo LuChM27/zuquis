@@ -20,6 +20,7 @@ from app.shared.fechas import a_local
 
 FORMATO_PESOS = '"$"#,##0'
 FORMATOS = {"pesos": FORMATO_PESOS, "entero": "0", "cantidad": "#,##0.####", "porcentaje": "0.00"}
+FORMULA = ("=", "+", "-", "@")
 PROHIBIDOS = str.maketrans({c: " " for c in "[]:*?/\\"})
 
 
@@ -77,6 +78,8 @@ def _hoja(libro: Workbook, r: Reporte, s: Seccion, negocio: str) -> None:
         for j, c in enumerate(s.columnas, start=1):
             tipo = _tipo(c, fila)
             celda = hoja.cell(row=i, column=j, value=_celda_excel(fila.get(c.clave), tipo))
+            if isinstance(celda.value, str) and celda.value[:1] in FORMULA:
+                celda.data_type = "s"  # texto de usuario: nunca se evalúa como fórmula
             if tipo in FORMATOS:
                 celda.number_format = FORMATOS[tipo]
                 celda.alignment = Alignment(horizontal="right")
