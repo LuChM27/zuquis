@@ -15,4 +15,4 @@ React + Vite + TypeScript (PWA) · FastAPI + Pydantic v2 · PostgreSQL 16 + SQLA
 
 ## Estado
 
-Fase 0 (base) por comenzar.
+Fase 4: reportes, dashboard y galería de gráficos
